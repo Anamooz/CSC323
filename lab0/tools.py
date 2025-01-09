@@ -24,3 +24,30 @@ def base64_to_ascii(base64Bytes: str) -> bytes:
 x = ascii_to_hex("Hello:".encode())
 print(x)
 print(hex_to_ascii(x))
+
+
+def getFrequency(string: str) -> dict:
+    string = string.lower()
+    freq = {}
+    for i in string:
+        if i in freq:
+            freq[i] += 1
+        else:
+            freq[i] = 1
+    return freq
+
+
+def indexCoincidence(inputText: str) -> float:
+    freq = getFrequency(inputText)
+    message_length = len(inputText)
+    numberOfChars = 26
+    total = 0
+    for i in range(numberOfChars):
+        try:
+            total += freq[chr(i + 97)] * (freq[chr(i + 97)] - 1)
+        except KeyError:
+            pass
+    return total / ((message_length * (message_length - 1)) / numberOfChars)
+
+
+print(indexCoincidence(input("Enter a string: ")))
