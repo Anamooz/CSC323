@@ -19,3 +19,8 @@ def ascii_to_base64(asciiText: str) -> str:
 # Converts base64 encoded string to ASCII text
 def base64_to_ascii(base64Bytes: str) -> str:
     return base64.b64decode(base64Bytes.encode()).decode()
+
+
+x = ascii_to_hex("Hello:")
+print(x)
+print(hex_to_ascii(x))
