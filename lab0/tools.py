@@ -1,4 +1,5 @@
 import base64
+from constants import FREQUENCY
 
 
 # Converts an ASCII string to hex encoding
@@ -22,12 +23,22 @@ def base64_to_ascii(base64Bytes: str) -> bytes:
 
 
 # Testing our encode and decode functions
-x = ascii_to_hex("Hello:".encode())
-print(x)
-print(hex_to_ascii(x))
+# x = ascii_to_hex("Hello:".encode())
+# print(x)
+# print(hex_to_ascii(x))
 
 
-# The following function finds the numbers of occurences of each character in a string
+# Function to check if a string has at least one vowel after decrypting attempt
+def hasVowel(input_string: str) -> bool:
+    vowels = "aeiou"
+    count = 0
+    for s in input_string.lower():
+        if s in vowels:
+            count += 1
+    return count >= 1
+
+
+# The following function finds the numbers of occurences of each character in a string after decrypting attempt
 def getFrequency(string: str) -> dict:
     string = string.lower()
     freq = {}
@@ -39,7 +50,7 @@ def getFrequency(string: str) -> dict:
     return freq
 
 
-# The following funcion finds the number of alphabet characters in a string
+# The following funcion finds the number of alphabet characters in a string after decrypting attempt
 # Alaphabet characters are defined as "A-Z" and "a-z"
 def countNumberOfCharacters(input_string: str) -> int:
     count = 0
@@ -49,6 +60,7 @@ def countNumberOfCharacters(input_string: str) -> int:
     return count
 
 
+# The following function counts the index of coincidence of a string for English after decrypting attempt
 def indexCoincidence(inputText: str) -> float:
     freq = getFrequency(inputText)
     message_length = countNumberOfCharacters(inputText)
@@ -62,5 +74,53 @@ def indexCoincidence(inputText: str) -> float:
     return total / ((message_length * (message_length - 1)) / numberOfChars)
 
 
+# The following function finds the number of words in a string that do not contain any vowels after decrypting attempt
+def numberOfNonVowelWords(input_string: str) -> int:
+    words = input_string.split()
+    return len(list(filter(lambda x: not hasVowel(x), words)))
+
+
+def frequencyDifference(input_string: str) -> float:
+    freq = getFrequency(input_string)
+    string_length = countNumberOfCharacters(
+        input_string
+    )  # Number of alphabet characters in the string
+    difference_total = 0
+    for key in freq:
+        try:
+            # Calculate the difference between the frequency of the letter in the text and the expected frequency
+            # Frequency = (Number of occurences of the letter / Length of the string) * 100
+            difference_total += abs(
+                ((freq[key] / string_length) * 100) - FREQUENCY[key]
+            )
+        except KeyError:
+            try:
+                # Letter doesnt exist in our decrypted text
+                # Give frequency % of 0
+                difference_total += abs(0 - FREQUENCY[key])
+            except KeyError:
+                pass  # Non alphabet character Ignored
+    return difference_total / len(FREQUENCY)
+
+
+def isEnglish(input_string: str) -> bool:
+    return (
+        abs(indexCoincidence(input_string) - 1.7) < 0.3
+        and numberOfNonVowelWords(input_string) < 2
+        and frequencyDifference(input_string) <= 1.5
+    )
+
+
 # Testing the indexCoincidence function
-print(indexCoincidence(input("Enter a string: ")))
+# print(indexCoincidence(input("Enter a string: ")))
+print(
+    isEnglish(
+        "The evening breeze drifted gently, rustling leaves that adorned ancient trees. Soft whispers carried tales of time, subtle yet profound. Amid the golden horizon, birds soared, tracing arcs across azure skies. People watched quietly, pondering fleeting moments, tethered by wonder to the vast expanse."
+    )
+)
+
+print(
+    indexCoincidence(
+        "The red tent sat tall. Soft winds went fast, yet all stayed. Near trees, ants ran past. Birds sang, low and sweet, while dew fell. Green grass met earth, wet still, as dusk set."
+    )
+)
