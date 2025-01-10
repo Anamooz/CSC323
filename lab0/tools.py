@@ -57,7 +57,7 @@ def indexCoincidence(inputText: str) -> float:
     for i in range(numberOfChars):
         try:
             total += freq[chr(i + 97)] * (freq[chr(i + 97)] - 1)
-        except KeyError:
+        except KeyError:  # Letter does not exist in the text
             pass
     return total / ((message_length * (message_length - 1)) / numberOfChars)
 
