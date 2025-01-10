@@ -21,11 +21,13 @@ def base64_to_ascii(base64Bytes: str) -> bytes:
     return base64.b64decode(base64Bytes.encode())
 
 
+# Testing our encode and decode functions
 x = ascii_to_hex("Hello:".encode())
 print(x)
 print(hex_to_ascii(x))
 
 
+# The following function finds the numbers of occurences of each character in a string
 def getFrequency(string: str) -> dict:
     string = string.lower()
     freq = {}
@@ -37,6 +39,8 @@ def getFrequency(string: str) -> dict:
     return freq
 
 
+# The following funcion finds the number of alphabet characters in a string
+# Alaphabet characters are defined as "A-Z" and "a-z"
 def countNumberOfCharacters(input_string: str) -> int:
     count = 0
     for s in input_string:
@@ -58,4 +62,5 @@ def indexCoincidence(inputText: str) -> float:
     return total / ((message_length * (message_length - 1)) / numberOfChars)
 
 
+# Testing the indexCoincidence function
 print(indexCoincidence(input("Enter a string: ")))
