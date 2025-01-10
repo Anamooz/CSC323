@@ -37,9 +37,17 @@ def getFrequency(string: str) -> dict:
     return freq
 
 
+def countNumberOfCharacters(input_string: str) -> int:
+    count = 0
+    for s in input_string:
+        if s.isalpha():
+            count += 1
+    return count
+
+
 def indexCoincidence(inputText: str) -> float:
     freq = getFrequency(inputText)
-    message_length = len(inputText)
+    message_length = countNumberOfCharacters(inputText)
     numberOfChars = 26
     total = 0
     for i in range(numberOfChars):
