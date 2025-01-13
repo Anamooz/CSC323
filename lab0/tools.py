@@ -71,7 +71,10 @@ def indexCoincidence(inputText: str) -> float:
             total += freq[chr(i + 97)] * (freq[chr(i + 97)] - 1)
         except KeyError:  # Letter does not exist in the text
             pass
-    return total / ((message_length * (message_length - 1)) / numberOfChars)
+    try:
+        return total / ((message_length * (message_length - 1)) / numberOfChars)
+    except ZeroDivisionError:
+        return 0
 
 
 # The following function finds the number of words in a string that do not contain any vowels after decrypting attempt
@@ -111,16 +114,12 @@ def isEnglish(input_string: str) -> bool:
     )
 
 
-# Testing the indexCoincidence function
-# print(indexCoincidence(input("Enter a string: ")))
-print(
-    isEnglish(
-        "The evening breeze drifted gently, rustling leaves that adorned ancient trees. Soft whispers carried tales of time, subtle yet profound. Amid the golden horizon, birds soared, tracing arcs across azure skies. People watched quietly, pondering fleeting moments, tethered by wonder to the vast expanse."
-    )
-)
-
-print(
-    indexCoincidence(
-        "The red tent sat tall. Soft winds went fast, yet all stayed. Near trees, ants ran past. Birds sang, low and sweet, while dew fell. Green grass met earth, wet still, as dusk set."
-    )
-)
+def implementXOR(inputString: bytes, key: bytes) -> bytes:
+    if len(inputString) > len(
+        key
+    ):  # Repeat the key if it is shorter than the input string
+        number = len(inputString) // len(key) + 1
+        key *= number
+    return bytes(
+        [a ^ b for a, b in zip(inputString, key)]
+    )  # For every byte in the input string, XOR it with the corresponding byte in the key
