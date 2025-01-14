@@ -12,7 +12,7 @@ def hex_to_ascii(hexString: str) -> bytes:
     return bytes.fromhex(hexString)
 
 
-# Converts an ASCII string to base64 encoding
+# Converts an ASCII string to base64 encoding in string format
 def ascii_to_base64(asciiText: bytes) -> str:
     return base64.b64encode(asciiText).decode()
 
