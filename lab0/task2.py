@@ -32,15 +32,19 @@ def fileReaderBase64(file: str) -> List[bytes]:
 
 
 # The following function performs a single byte XOR on a list of text and a key
-def singleXORHelperLooper(texts: List[bytes]) -> Tuple[int, str]:
+def singleXORHelperLooper(texts: List[bytes]) -> List[Tuple[int, str]]:
     # For all possible keys for a single byte XOR
     # for(int key = 0; key < 256; key++)
+    possible_keys_texts: List[Tuple[int, str]] = []
     for key in range(256):
         # k : is the key used to decrypt the text
         # string : is the decrypted text
         k, string = singleXORHelper(texts, int.to_bytes(key, 1))
         if string is not None:  # If there is a match
-            return (k, string)  # Return the key and the decrypted text
+            possible_keys_texts.append(
+                (k, string)
+            )  # Add the key and the text to the list of possible keys text combinations
+    return possible_keys_texts  # Return the list of possible keys text combinations
 
 
 # The following function brute forces a single byte XOR on a list of text and a key
@@ -84,9 +88,9 @@ def singleXORHelper(texts: List[bytes], key: bytes) -> List[bytes]:
         if isEnglish(text.decode(errors="ignore")):
             english_text.append(text.decode(errors="ignore"))
     if len(english_text) > 0:
-        return [(int(hex(key[0]), 16), english_text)]
+        return (int(hex(key[0]), 16), english_text)
     else:
-        return [(int(hex(key[0]), 16), None)]
+        return (int(hex(key[0]), 16), None)
 
 
 # The following function splits the string only extracting the xth character where x is a multiple of the key size
@@ -127,9 +131,9 @@ def mutiByteXORKeySearxh(text: bytes) -> None:
     # Sort the indexCoincidenceValues list by the index of coincidence value ;
     # indexCoincidenceValues.sort((a, b) -> if (a[1] > b[1]) return 1; else if (a[1] < b[1]) return -1; else return 0)
     indexCoincidenceValues.sort(key=lambda x: x[1])
-    print(
-        indexCoincidenceValues
-    )  # Print the indexCoincidenceValues list; System.out.println(indexCoincidenceValues)
+    # print(
+    #     indexCoincidenceValues
+    # )  # Print the indexCoincidenceValues list; System.out.println(indexCoincidenceValues)
     return indexCoincidenceValues[0][
         0
     ]  # Return the key size with the smallest index of coincidence value ; return indexCoincidenceValues.get(0).get(0)
@@ -412,7 +416,8 @@ def decipherMutliByteXOR(text: bytes, keySize: int) -> None:
 
 
 def main():
-    singleXORHelperLooper(fileReaderHex("Lab0.TaskII.B.txt"))
+    for result in singleXORHelperLooper(fileReaderHex("Lab0.TaskII.B.txt")):
+        print(result)
     lab1_taskb_text = fileReaderBase64("lab0_b_2.txt")
     best_key_size = mutiByteXORKeySearxh(lab1_taskb_text)
     print("Best key size: ", best_key_size)
