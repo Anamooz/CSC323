@@ -79,7 +79,7 @@ def mutiByteXORHelper(text: bytes, keySize: int, queue: Queue) -> None:
 
 # The following function finds the ideal key size
 # fo the mutibyte XOR by minimuzing the index of coincidence difference from ideal English (1.7 )
-def mutiByteXOR(text: bytes) -> None:
+def mutiByteXORKeySearxh(text: bytes) -> None:
     q: Queue = Queue()  # Creates a queue for muutiprocessing; Queue q = new Queue()
     process_list: List[Process] = (
         []
@@ -109,14 +109,16 @@ def mutiByteXOR(text: bytes) -> None:
     print(
         indexCoincidenceValues
     )  # Print the indexCoincidenceValues list; System.out.println(indexCoincidenceValues)
+    return indexCoincidenceValues[0][
+        0
+    ]  # Return the key size with the smallest index of coincidence value ; return indexCoincidenceValues.get(0).get(0)
 
 
 def main():
     singleXORHelperLooper(fileReaderHex("Lab0.TaskII.B.txt"))
-    lab1_taskb_text = fileReaderBase64(
-        "/Users/tigerplayspc/Documents/CS/CSC323/lab0/lab0_b_2.txt"
-    )
-    mutiByteXOR(lab1_taskb_text)
+    lab1_taskb_text = fileReaderBase64("lab0_b_2.txt")
+    best_key_size = mutiByteXORKeySearxh(lab1_taskb_text)
+    print("Best key size: ", best_key_size)
 
 
 if __name__ == "__main__":
