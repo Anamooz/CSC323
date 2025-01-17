@@ -93,6 +93,43 @@ def singleXORHelper(texts: List[bytes], key: bytes) -> List[bytes]:
         return (int(hex(key[0]), 16), None)
 
 
+# The following function performs a single byte XOR on a list of text and a key
+def singleXORHelperIndexOfCo(texts: List[bytes], level: int, q: Queue):
+    # For all possible keys for a single byte XOR
+    # for(int key = 0; key < 256; key++)
+    possible_keys_texts: List[Tuple[int, str]] = []
+    for key in range(256):
+        # k : is the key used to decrypt the text
+        # string : is the decrypted text
+        k, string = singleXORHelperReturnIndexOfCo(texts, int.to_bytes(key, 1))
+        if string is not None:  # If there is a match
+            possible_keys_texts.append(
+                (k, string)
+            )  # Add the key and the text to the list of possible keys text combinations
+    return q.put(
+        [level, possible_keys_texts]
+    )  # Return the list of possible keys text combinations
+
+
+# The following function performs a single byte XOR on a text and a key
+# It will return all keys that are possible texts in English along with their assiocated text
+# Return type will be of type list of tuples where the first element is the key and the second element is the text of a match is foound or
+# key, None oyherwise
+def singleXORHelperReturnIndexOfCo(texts: List[bytes], key: bytes) -> List[bytes]:
+    extracted_text: List[bytes] = []
+    for text in texts:
+        extracted_text.append(implementXOR(text, key))  # 0x610x650xF6 --> "Ae.."
+    english_text = []
+    for text in extracted_text:
+        decoded_text = text.decode(errors="ignore")
+        if abs(indexCoincidence(decoded_text) - 1.7) < 0.25:
+            english_text.append(text.decode(errors="ignore"))
+    if len(english_text) > 0:
+        return (int(hex(key[0]), 16), english_text)
+    else:
+        return (int(hex(key[0]), 16), None)
+
+
 # The following function splits the string only extracting the xth character where x is a multiple of the key size
 # Ex if the key size is 5 then this function will only test decryption the 5th, 10th, 15th, 20th, ... characters
 def mutiByteXORHelper(text: bytes, keySize: int, queue: Queue) -> None:
@@ -104,7 +141,7 @@ def mutiByteXORHelper(text: bytes, keySize: int, queue: Queue) -> None:
 
 # The following function finds the ideal key size
 # fo the mutibyte XOR by minimuzing the index of coincidence difference from ideal English (1.7 )
-def mutiByteXORKeySearxh(text: bytes) -> None:
+def mutiByteXORKeySearch(text: bytes) -> int:
     q: Queue = Queue()  # Creates a queue for muutiprocessing; Queue q = new Queue()
     process_list: List[Process] = (
         []
@@ -134,29 +171,39 @@ def mutiByteXORKeySearxh(text: bytes) -> None:
     # print(
     #     indexCoincidenceValues
     # )  # Print the indexCoincidenceValues list; System.out.println(indexCoincidenceValues)
+    print(indexCoincidenceValues)
     return indexCoincidenceValues[0][
         0
     ]  # Return the key size with the smallest index of coincidence value ; return indexCoincidenceValues.get(0).get(0)
 
+# The following function returns true if the it passes the filter or false otherwise 
+def mutiByteKeyXORFilter(string : str) -> bool:
+    beginsWithEnglish : bool =  string[0].isalpha()
+    numberOfEngCharacter = string.fold()
 
 # The following function decrtypes a mutibyte XOR encrypted text guven a key size of N bytes
 # The function will use mutiple processes each responsible for decrypting part of the text
 # The results will then be joined together to form the final decrypted text or texts
 def decipherMutliByteXOR(text: bytes, keySize: int) -> None:
     # Intalizes lists for the decrypted parts and the processes used to decrypt the messages
-    decrypted_parts: List[str] = []
+    decrypted_parts: List[str] = [0] * 6
     # List to store all processes
     process_list: List[str] = []
     queue: Queue = Queue()  # A queue to store the result from each process
     for i in range(keySize):
-        sub_text = [text[i] for j in range(len(text)) if j % keySize == i]
-        process = Process(target=singleXORHelperLooper, args=([sub_text],))
-        process.append(process)
+        sub_text = [text[j] for j in range(len(text)) if j % keySize == i]
+        process = Process(target=singleXORHelperIndexOfCo, args=([sub_text], i, queue))
+        process_list.append(process)
         process.start()
     # Join all the processes togtether once they have completed
     for process in process_list:
         process.join()
     # To be done ...
+    while not queue.empty():
+        element = queue.get()
+        level = element[0]
+        decrypted_parts[level] = element[1]
+    print(len(decrypted_parts[0]))
     # Collect the results from each queue
     # Match the each part of the text with the correct key
     # Make a list of all different combvinations
@@ -419,8 +466,10 @@ def main():
     for result in singleXORHelperLooper(fileReaderHex("Lab0.TaskII.B.txt")):
         print(result)
     lab1_taskb_text = fileReaderBase64("lab0_b_2.txt")
-    best_key_size = mutiByteXORKeySearxh(lab1_taskb_text)
+    print(len(lab1_taskb_text))
+    best_key_size = mutiByteXORKeySearch(lab1_taskb_text)
     print("Best key size: ", best_key_size)
+    decipherMutliByteXOR(lab1_taskb_text, best_key_size)
 
 
 if __name__ == "__main__":
