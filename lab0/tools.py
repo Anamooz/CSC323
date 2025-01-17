@@ -22,12 +22,6 @@ def base64_to_ascii(base64Bytes: str) -> bytes:
     return base64.b64decode(base64Bytes.encode())
 
 
-# Testing our encode and decode functions
-# x = ascii_to_hex("Hello:".encode())
-# print(x)
-# print(hex_to_ascii(x))
-
-
 # Function to check if a string has at least one vowel after decrypting attempt
 def hasVowel(input_string: str) -> bool:
     vowels = "aeiou"
