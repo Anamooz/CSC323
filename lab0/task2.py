@@ -5,8 +5,8 @@ from statistics import mean
 
 # --- Filters for detemining what keys/text to keep ---
 SINGLE_BYTE_XOR_KEY_FILTER = lambda text: isEnglish(text)
-MUTI_BYTE_XOR_KEY_FILTER = lambda text: (indexCoincidence(text) - 1.7) < 0.25
-MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER = lambda text: text[0].isalpha()
+MUTI_BYTE_XOR_KEY_FILTER = lambda text: abs((indexCoincidence(text) - 1.7)) < 0.25
+MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER = lambda text: chr(text[0]).isalpha()
 MUTI_BYTE_XOR_SUB_STRING_FULTER = lambda text: (
     abs(indexCoincidence(text) - 1.7)
     < 0.25
@@ -149,6 +149,9 @@ def singleByteXORDecoder(
         return (int(hex(key[0]), 16), None)
 
 
+# --- Muti-Byte XOR Functions ---
+
+
 def mutiByteKeyBySingleByteXOR(texts: List[bytes], position: int, q: Queue):
     """
 
@@ -167,10 +170,13 @@ def mutiByteKeyBySingleByteXOR(texts: List[bytes], position: int, q: Queue):
     """
 
     # Calculates the possible keys for a single byte XOR of this position and text
-    possible_keys = singleXORCracker([texts], MUTI_BYTE_XOR_KEY_FILTER)
+    possible_keys = singleXORCracker(texts, MUTI_BYTE_XOR_KEY_FILTER)
 
     # Returns the possible keys and text combinations to the queue for parent process to collect and process
     return q.put([position, possible_keys])
+
+
+# -- Muti-byte deteming key size ---
 
 
 def keySizeIndexOfCoincidenceCalculator(text: bytes) -> float:
@@ -306,6 +312,9 @@ def mutiByteXORKeySearch(text: bytes) -> int:
 
     # Return the key size with the smallest index of coincidence value
     return indexCoincidenceValues[0][0]
+
+
+# --- Muti-Byte XOR Decryption Functions ---
 
 
 def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
@@ -609,17 +618,20 @@ def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
         process.start()
 
     # Join all the processes togtether once they have completed
+    # Collects the results from the queue deposited by each process and stores them in the decrypted_parts list
     for process in process_list:
         process.join()
-
-    # Collect the results from each queue
-    while not queue.empty():
         element = queue.get()  # Collect the result fronm the queue
         level = element[0]  # See which part of the text it is (offset from the key)
         decrypted_parts[level] = element[1]  # Collect the key, text combination pairs
+
+    # Collect the results from each queue
     decrypted_parts[0] = list(
-        decrypted_parts[0].filter(MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER)
+        filter(MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER, decrypted_parts[0])
     )
+
+
+# -- Main -- #
 
 
 def main():
@@ -629,13 +641,13 @@ def main():
     for result in singleXORCracker(
         fileReaderHex("./encrypted_files/Lab0.TaskII.B.txt"), SINGLE_BYTE_XOR_KEY_FILTER
     ):
-        print(f"Key: {result[0]}, Text: {result[1][0]}\n{"-"*20}\n")
+        print(f"Key: {result[0]}, Text: {result[1][0]}\n{" - "*20}\n")
 
     # Task 2B
-    lab1_taskb_text = fileReaderBase64("./encrypted_files/Lab0.TaskII.B.txt")
+    lab1_taskb_text = fileReaderBase64("./encrypted_files/Lab0.TaskII.C.txt")
     best_key_size = mutiByteXORKeySearch(lab1_taskb_text)
     print("Best key size: ", best_key_size)
-    # decryptMutliByteXOR(lab1_taskb_text, best_key_size)
+    decryptMutliByteXOR(lab1_taskb_text, best_key_size)
 
 
 if __name__ == "__main__":
