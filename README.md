@@ -47,7 +47,7 @@ Requirements specified in this README apply to all projects. Some particular lab
 1. Change to the directory where you would like to clone the project to `cd <directory path`   
 2. Run the following command to pull the project down from Github `git clone git@github.com:Anamooz/CSC323.git`
 
-##### Through VS Code
+#### Through VS Code
 
 1. Open VS Code   
 2. Change to the directory where you would like the project to be cloned to `File` \> `Open Folder`  
