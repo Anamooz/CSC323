@@ -3,14 +3,51 @@ from typing import List, Tuple, Callable
 from multiprocessing import Queue, Process
 from statistics import mean
 
+
+class KeyAttributes:
+    def __init__(
+        self,
+        key: int,
+        index_of_coincidence: float,
+        vowel_ratio: float,
+        space_ratio: float,
+    ):
+        self.key = key
+        self.index_of_coincidence = index_of_coincidence
+        self.vowel_ratio = vowel_ratio
+        self.space_ratio = space_ratio
+
+    def __str__(self):
+        return f"Key: {self.key} | Index of Coincidence: {self.index_of_coincidence} | Vowel Ratio: {self.vowel_ratio} | Space Ratio: {self.space_ratio} | Valid Key: {self.valid_key()}"
+
+    def __repr__(self):
+        return self.__str__()
+
+    def valid_key(self) -> bool:
+        return (
+            self.vowel_ratio > 0.25
+            and self.vowel_ratio < 0.5
+            and abs(self.index_of_coincidence - 1.7) < 0.25
+            and self.space_ratio > 0.1
+            and self.space_ratio < 0.25
+        )
+
+
 # --- Filters for detemining what keys/text to keep ---
 SINGLE_BYTE_XOR_KEY_FILTER = lambda text: isEnglish(text)
 MUTI_BYTE_XOR_KEY_FILTER = lambda text: abs((indexCoincidence(text) - 1.7)) < 0.25
 MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER = lambda text: chr(text[0]).isalpha()
-MUTI_BYTE_XOR_SUB_STRING_FULTER = lambda text: (
-    abs(indexCoincidence(text) - 1.7)
-    < 0.25
-    # AND To be continued ...
+MUTI_BYTE_XOR_SUB_STRING_FILTER = lambda single_byte_key_possibilities: (
+    list(
+        filter(
+            lambda text: (
+                calculateVowelRatio(text[1][0]) > 0.3
+                and calculateVowelRatio(text[1][0]) < 0.9
+                and validByteRange(text[1][0])
+            ),
+            single_byte_key_possibilities,
+        )
+    )
 )
 
 # --- Reading File IO Functions ---
@@ -179,7 +216,7 @@ def mutiByteKeyBySingleByteXOR(texts: List[bytes], position: int, q: Queue):
 # -- Muti-byte deteming key size ---
 
 
-def keySizeIndexOfCoincidenceCalculator(text: bytes) -> float:
+def keySizeIndexOfCoincidenceCalculator(text: bytes) -> bool:
     """
     The following function attempts to calculate the index of coincidence for a given text and key size
     Given a single byte key the function will attempt to loop through all possible combinations of that byte and find the `average`
@@ -190,37 +227,28 @@ def keySizeIndexOfCoincidenceCalculator(text: bytes) -> float:
     text (bytes): The text that is encrypted
 
     Returns:
-    float: The average index of coincidence value for all 256 different possible keys
+    bool : If this key size has the potential to be the correct key size
 
     """
-
-    # Creates a list of the index of coincidence values for all possible keys
-    # ArrayList<Float> indexCoincidenceKeys = new ArrayList<>()
-
-    indexCoincidenceKeys: List[float] = []
 
     # For each possible key in a single byte XOR of a given length
     # For every possible key in a single byte XOR; for(int key = 0; key < 256; key++)
     # for(int key = 0; key < 256; key++)
     for key in range(256):
 
-        # Calcilate the index of coincidence for the text after a using that key to decrypt those characters
-        # Append that value to the indexCoincidenceKeys list;
-        # indexCoincidenceKeys.add(Math.abs(new String(indexCoincidence(implementXOR(text,
-        # key.byteValue())),StandardCharsets.UTF_8) - 1.7)
-
-        indexCoincidenceKeys.append(
-            abs(
-                indexCoincidence(
-                    implementXOR(text, int.to_bytes(key, 1)).decode(errors="ignore")
-                )
-                - 1.7
+        # For every key in this single byte XOR try that key and use it to decrypt the text
+        # If the decrypyed text contains only valid characters then it has a high chance of being the correct key size
+        english = implementXOR(text, int.to_bytes(key, 1)).decode(errors="ignore")
+        if validByteRange(english):
+            return (
+                True,
+                indexCoincidence(english),
+                calculateVowelRatio(english),
+                calculateSpaceRatio(english),
             )
-        )
 
-    # Calculate the mean of all the index of coincidence values
-    # indexCoincidenceKeys.stream().mapToDouble(a -> a).average().getAsDouble()
-    return mean(indexCoincidenceKeys)
+    # If all keys have been exhausted and none of them have produced a valid text then the key size is incorrect
+    return (False, 0, 0, 0)
 
 
 def mutiByteXORKeyProcess(text: bytes, keySize: int, queue: Queue) -> None:
@@ -246,7 +274,11 @@ def mutiByteXORKeyProcess(text: bytes, keySize: int, queue: Queue) -> None:
     sub_text = [text[i] for i in range(len(text)) if i % keySize == 0]
 
     # Grabs the nth character in a ASCII string if n is a mutiple of the keySize
-    queue.put([keySize, keySizeIndexOfCoincidenceCalculator(sub_text)])
+    key_info = keySizeIndexOfCoincidenceCalculator(sub_text)
+    key: KeyAttributes = None
+    if key_info[0]:
+        key = KeyAttributes(keySize, key_info[1], key_info[2], key_info[3])
+    queue.put((keySize, key))
 
 
 def mutiByteXORKeySearch(text: bytes) -> int:
@@ -270,7 +302,7 @@ def mutiByteXORKeySearch(text: bytes) -> int:
     # Creates a list to store all processes; List<Process> process_list = new ArrayList<>()
     process_list: List[Process] = []
     # Creates a list to store all index of coincidence values and their respective key sizes; List<List<int, int>> indexCoincidenceValues = new ArrayList<>()
-    indexCoincidenceValues: List[List[int, float]] = []
+    indexCoincidenceValues: List[List[int, int]] = []
 
     # For all key sizes between 1 and 20 ; for(int i = 1; i < 20; i++)
     for i in range(1, 20):
@@ -292,26 +324,19 @@ def mutiByteXORKeySearch(text: bytes) -> int:
         # Collect the result and append it to the indexCoincidenceValues list ; indexCoincidenceValues.add(q.get())
         indexCoincidenceValues.append(q.get())
 
-    # Sort the indexCoincidenceValues list by the index of coincidence value ;
-    # indexCoincidenceValues.sort((a, b) -> if (a[1] > b[1]) return 1; else if (a[1] < b[1]) return -1; else return 0)
-    indexCoincidenceValues.sort(key=lambda x: x[1])
+    indexCoincidenceValues = filter(lambda x: x[1] is not None, indexCoincidenceValues)
 
     # Prints a formatted table of the index of coincidence values for all key sizes between 1 and 20
     print(
         f"Index of Coincidence Values for keys between 1 & 20 \n{'-'*20}\n"
         + "Key Size | Index of Coincidence\n"
-        + "\n".join(
-            [
-                f"Key Size: {x[0]} | Index of Coincidence: {x[1]}"
-                for x in indexCoincidenceValues
-            ]
-        )
+        + "\n".join([f"{key}" for key in indexCoincidenceValues])
         + "\n"
         + "-" * 20
     )
 
-    # Return the key size with the smallest index of coincidence value
-    return indexCoincidenceValues[0][0]
+    # # Return the key size with the smallest index of coincidence value
+    # return indexCoincidenceValues[0][0]
 
 
 # --- Muti-Byte XOR Decryption Functions ---
@@ -593,7 +618,7 @@ def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
     """
 
     # Intalizes lists for the decrypted parts used to decrypt the messages
-    decrypted_parts: List[List[int, str]] = [0] * 6
+    decrypted_parts: List[List[int, str]] = [0] * keySize
 
     # List to store all processes workers
     process_list: List[str] = []
@@ -629,6 +654,9 @@ def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
     decrypted_parts[0] = list(
         filter(MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER, decrypted_parts[0])
     )
+    decrypted_parts = list(map(MUTI_BYTE_XOR_SUB_STRING_FILTER, decrypted_parts))
+    for result in decrypted_parts:
+        print(len(result), result)
 
 
 # -- Main -- #
@@ -646,8 +674,8 @@ def main():
     # Task 2B
     lab1_taskb_text = fileReaderBase64("./encrypted_files/Lab0.TaskII.C.txt")
     best_key_size = mutiByteXORKeySearch(lab1_taskb_text)
-    print("Best key size: ", best_key_size)
-    decryptMutliByteXOR(lab1_taskb_text, best_key_size)
+    # print("Best key size: ", best_key_size)
+    decryptMutliByteXOR(lab1_taskb_text, 5)
 
 
 if __name__ == "__main__":

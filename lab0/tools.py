@@ -153,8 +153,7 @@ def indexCoincidence(inputText: str) -> float:
         except KeyError:  # Letter does not exist in the text
             pass
     try:
-        return total / ((message_length *
-                         (message_length - 1)) / numberOfChars)
+        return total / ((message_length * (message_length - 1)) / numberOfChars)
     except ZeroDivisionError:
         return 0
 
@@ -192,14 +191,16 @@ def frequencyDifference(input_string: str) -> float:
 
     freq = getFrequency(input_string)
     string_length = countNumberOfCharacters(
-        input_string)  # Number of alphabet characters in the string
+        input_string, False
+    )  # Number of alphabet characters in the string
     difference_total = 0
     for key in freq:
         try:
             # Calculate the difference between the frequency of the letter in the text and the expected frequency
             # Frequency = (Number of occurences of the letter / Length of the string) * 100
-            difference_total += abs(((freq[key] / string_length) * 100) -
-                                    FREQUENCY[key])
+            difference_total += abs(
+                ((freq[key] / string_length) * 100) - FREQUENCY[key]
+            )
         except KeyError:
             try:
                 # Letter doesnt exist in our decrypted text
@@ -226,9 +227,11 @@ def isEnglish(input_string: str) -> bool:
 
     """
 
-    return (abs(indexCoincidence(input_string) - 1.7) < 0.3
-            and numberOfNonVowelWords(input_string) < 2
-            and frequencyDifference(input_string) <= 1.5)
+    return (
+        abs(indexCoincidence(input_string) - 1.7) < 0.3
+        and numberOfNonVowelWords(input_string) < 2
+        and frequencyDifference(input_string) <= 1.5
+    )
 
 
 def implementXOR(inputString: bytes, key: bytes) -> bytes:
@@ -246,9 +249,87 @@ def implementXOR(inputString: bytes, key: bytes) -> bytes:
     """
 
     if len(inputString) > len(
-            key):  # Repeat the key if it is shorter than the input string
+        key
+    ):  # Repeat the key if it is shorter than the input string
         number = len(inputString) // len(key) + 1
         key *= number
     return bytes(
         [a ^ b for a, b in zip(inputString, key)]
     )  # For every byte in the input string, XOR it with the corresponding byte in the key
+
+
+def vowelCounter(char: str) -> int:
+    """
+
+    The following function checks if a character is a vowel
+
+    Args:
+    char (str): The string to be checked
+
+    Returns:
+    int: Number of vowels in the string
+
+    """
+    count = 0
+    for s in char:
+        if s.lower() in "aeiou":
+            count += 1
+    return count
+
+
+def calculateVowelRatio(string: str) -> float:
+    """
+
+    The following function calculates the ratio of vowels to the total number of characters in a string
+
+    Args:
+    string (str): The string to be checked
+
+    Returns:
+    float: The ratio of vowels to the total number of characters in the string
+
+    """
+
+    try:
+        ratio = vowelCounter(string) / countNumberOfCharacters(string, False)
+        return ratio
+    except ZeroDivisionError:
+        return 0
+
+
+def validByteRange(input: str) -> bool:
+    """
+    The following function checks if a given string contains only valid chartacters used in normal English text
+
+    Args:
+    input (str): The string to be checked
+
+    Returns:
+    bool: True if the string contains only valid characters, False otherwise
+
+    """
+
+    for i in input:
+        if ord(i) > 126 or ord(i) < 32 and i not in ["\n", "\r", "\t"]:
+            return False
+    return True
+
+
+def calculateSpaceRatio(string: str) -> float:
+    """
+
+    The following function calculates the ratio of spaces to the total number of characters in a string
+
+    Args:
+    string (str): The string to be checked
+
+    Returns:
+    float: The ratio of spaces to the total number of characters in the string
+
+    """
+
+    try:
+        ratio = string.count(" ") / countNumberOfCharacters(string, True)
+        return ratio
+    except ZeroDivisionError:
+        return 0
