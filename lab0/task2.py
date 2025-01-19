@@ -1,7 +1,7 @@
 from tools import *
 from typing import List, Tuple, Callable
 from multiprocessing import Queue, Process
-from statistics import mean
+from itertools import product
 
 
 class KeyAttributes:
@@ -35,16 +35,12 @@ class KeyAttributes:
 
 # --- Filters for detemining what keys/text to keep ---
 SINGLE_BYTE_XOR_KEY_FILTER = lambda text: isEnglish(text)
-MUTI_BYTE_XOR_KEY_FILTER = lambda text: abs((indexCoincidence(text) - 1.7)) < 0.25
+MUTI_BYTE_XOR_KEY_FILTER = lambda text: abs((indexCoincidence(text) - 1.7)) < 0.3
 MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER = lambda text: chr(text[0]).isalpha()
 MUTI_BYTE_XOR_SUB_STRING_FILTER = lambda single_byte_key_possibilities: (
     list(
         filter(
-            lambda text: (
-                calculateVowelRatio(text[1][0]) > 0.3
-                and calculateVowelRatio(text[1][0]) < 0.9
-                and validByteRange(text[1][0])
-            ),
+            lambda text: (validByteRange(text[1][0])),
             single_byte_key_possibilities,
         )
     )
@@ -340,6 +336,59 @@ def mutiByteXORKeySearch(text: bytes) -> int:
 
 
 # --- Muti-Byte XOR Decryption Functions ---
+
+
+def constructStrings(possible_keys) -> List[Tuple[List[int], str]]:
+    """
+
+    The following function reconstructs all possible keys and text combinations given a list of keys and their assiosated substrings
+    The output will be a list of all possible combinations in the following format <List[int], str> where the first element is a list of keys and the second element is the combined decrypted text
+
+    Args:
+    possible_keys (List[List[int, str]]): A list of keys and their assiosated substrings
+
+    Returns:
+    List[int, str]: A list of all possible combinations of keys and text
+
+    """
+
+    strings_keys_list: List[Tuple[List[int], str]] = []
+
+    # Construct all different combinations of keys using the cartesian product
+    number_of_combinations = [
+        range(len(possible_keys[i])) for i in range(len(possible_keys))
+    ]
+    for item in list(product(*number_of_combinations)):
+        # Iniiates two arrays for storing the two keys and decrypted text
+        keys = []
+        decrypted_text = []
+
+        # For each of the keys
+        for i in range(len(item)):
+            # Get the key value
+            keys.append(possible_keys[i][item[i]][0])
+            # Get the substring of the text that is assioscated with that key
+            decrypted_text.append(possible_keys[i][item[i]][1])
+
+        # The following loop reconstructs the text from appending each character from each substring one character at a time
+        j = 0
+        string = ""
+
+        # While there are still chcaracters in the text to append
+        while len(decrypted_text) > 0:
+            # Collect that character and append it to the string
+            string += decrypted_text[j % len(decrypted_text)][0]
+            # If there are no more characters in the substring remove it from the list
+            if len(decrypted_text[j % len(decrypted_text)]) > 1:
+                decrypted_text[j % len(decrypted_text)] = decrypted_text[
+                    j % len(decrypted_text)
+                ][1:]
+            else:
+                # Otherwise pop that character off from the substring
+                decrypted_text.pop(j % len(decrypted_text))
+            j += 1
+        strings_keys_list.append((keys, string))
+    return strings_keys_list
 
 
 def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
@@ -655,8 +704,15 @@ def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
         filter(MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER, decrypted_parts[0])
     )
     decrypted_parts = list(map(MUTI_BYTE_XOR_SUB_STRING_FILTER, decrypted_parts))
-    for result in decrypted_parts:
-        print(len(result), result)
+    # for items in constructStrings(decrypted_parts)
+    #   if isEnglish(items[1]):
+    #     print("Correct key: ", decrypted_parts[0][0])
+    #     print("Decrypted text: ", decrypted_parts[0][1])
+    result = constructStrings(decrypted_parts)
+    for item in result:
+        print(item, "\n", "\n")
+    # for result in constructStrings(decrypted_parts):
+    #     print(result, "\n", "\n")
 
 
 # -- Main -- #

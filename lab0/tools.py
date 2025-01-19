@@ -201,7 +201,7 @@ def frequencyDifference(input_string: str) -> float:
             difference_total += abs(
                 ((freq[key] / string_length) * 100) - FREQUENCY[key]
             )
-        except KeyError:
+        except (KeyError, ZeroDivisionError):
             try:
                 # Letter doesnt exist in our decrypted text
                 # Give frequency % of 0
@@ -228,7 +228,7 @@ def isEnglish(input_string: str) -> bool:
     """
 
     return (
-        abs(indexCoincidence(input_string) - 1.7) < 0.3
+        abs(indexCoincidence(input_string) - 1.7) < 0.5
         and numberOfNonVowelWords(input_string) < 2
         and frequencyDifference(input_string) <= 1.5
     )
@@ -310,7 +310,7 @@ def validByteRange(input: str) -> bool:
     """
 
     for i in input:
-        if ord(i) > 126 or ord(i) < 32 and i not in ["\n", "\r", "\t"]:
+        if ord(i) > 126 or ord(i) < 32 and i not in ["\n", "\t", "\r"]:
             return False
     return True
 
