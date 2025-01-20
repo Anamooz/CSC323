@@ -229,8 +229,9 @@ def isEnglish(input_string: str) -> bool:
 
     return (
         abs(indexCoincidence(input_string) - 1.7) < 0.5
-        and numberOfNonVowelWords(input_string) < 2
+        and numberOfNonVowelWords(input_string) < 5
         and frequencyDifference(input_string) <= 1.5
+        and validByteRange(input_string)
     )
 
 
@@ -333,3 +334,22 @@ def calculateSpaceRatio(string: str) -> float:
         return ratio
     except ZeroDivisionError:
         return 0
+
+
+def findHighestToLowestCharacterFrequencyRatio(string: str) -> float:
+    """
+    The following function calculates the ratio of the highest character frequency to the lowest character frequency in a string
+
+    Args:
+    string (str): The string to be checked
+
+    Returns:
+    float: The ratio of the highest character frequency to the lowest character frequency in the string
+
+    """
+
+    freq = getFrequency(string)
+    try:
+        return max(freq.values()) / min(freq.values())
+    except ZeroDivisionError:
+        return max(freq.values())
