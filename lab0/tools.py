@@ -153,7 +153,8 @@ def indexCoincidence(inputText: str) -> float:
         except KeyError:  # Letter does not exist in the text
             pass
     try:
-        return total / ((message_length * (message_length - 1)) / numberOfChars)
+        return total / ((message_length *
+                         (message_length - 1)) / numberOfChars)
     except ZeroDivisionError:
         return 0
 
@@ -191,16 +192,14 @@ def frequencyDifference(input_string: str) -> float:
 
     freq = getFrequency(input_string)
     string_length = countNumberOfCharacters(
-        input_string, False
-    )  # Number of alphabet characters in the string
+        input_string, False)  # Number of alphabet characters in the string
     difference_total = 0
     for key in freq:
         try:
             # Calculate the difference between the frequency of the letter in the text and the expected frequency
             # Frequency = (Number of occurences of the letter / Length of the string) * 100
-            difference_total += abs(
-                ((freq[key] / string_length) * 100) - FREQUENCY[key]
-            )
+            difference_total += abs(((freq[key] / string_length) * 100) -
+                                    FREQUENCY[key])
         except (KeyError, ZeroDivisionError):
             try:
                 # Letter doesnt exist in our decrypted text
@@ -227,12 +226,10 @@ def isEnglish(input_string: str) -> bool:
 
     """
 
-    return (
-        abs(indexCoincidence(input_string) - 1.7) < 0.5
-        and numberOfNonVowelWords(input_string) < 5
-        and frequencyDifference(input_string) <= 1.5
-        and validByteRange(input_string)
-    )
+    return (abs(indexCoincidence(input_string) - 1.7) < 0.5
+            and numberOfNonVowelWords(input_string) < 5
+            and frequencyDifference(input_string) <= 1.5
+            and validByteRange(input_string))
 
 
 def implementXOR(inputString: bytes, key: bytes) -> bytes:
@@ -250,8 +247,7 @@ def implementXOR(inputString: bytes, key: bytes) -> bytes:
     """
 
     if len(inputString) > len(
-        key
-    ):  # Repeat the key if it is shorter than the input string
+            key):  # Repeat the key if it is shorter than the input string
         number = len(inputString) // len(key) + 1
         key *= number
     return bytes(

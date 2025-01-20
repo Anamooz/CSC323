@@ -7,6 +7,7 @@ from queue import Queue as ThreadQueue
 
 
 class KeyAttributes:
+
     def __init__(
         self,
         key: int,
@@ -28,27 +29,21 @@ class KeyAttributes:
         return self.__str__()
 
     def valid_key(self) -> bool:
-        return (
-            self.vowel_ratio > 0.25
-            and self.vowel_ratio < 0.5
-            and abs(self.index_of_coincidence - 1.7) < 0.25
-            and self.space_ratio > 0.1
-            and self.space_ratio < 0.25
-        )
+        return (self.vowel_ratio > 0.25 and self.vowel_ratio < 0.5
+                and abs(self.index_of_coincidence - 1.7) < 0.25
+                and self.space_ratio > 0.1 and self.space_ratio < 0.25)
 
 
 # --- Filters for detemining what keys/text to keep ---
 SINGLE_BYTE_XOR_KEY_FILTER = lambda text: isEnglish(text)
-MUTI_BYTE_XOR_KEY_FILTER = lambda text: abs((indexCoincidence(text) - 1.7)) < 0.5
+MUTI_BYTE_XOR_KEY_FILTER = lambda text: abs(
+    (indexCoincidence(text) - 1.7)) < 0.5
 MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER = lambda text: chr(text[0]).isalpha()
-MUTI_BYTE_XOR_SUB_STRING_FILTER = lambda single_byte_key_possibilities: (
-    list(
-        filter(
-            lambda text: (validByteRange(text[1][0])),
-            single_byte_key_possibilities,
-        )
-    )
-)
+MUTI_BYTE_XOR_SUB_STRING_FILTER = lambda single_byte_key_possibilities: (list(
+    filter(
+        lambda text: (validByteRange(text[1][0])),
+        single_byte_key_possibilities,
+    )))
 
 # --- Reading File IO Functions ---
 
@@ -90,7 +85,7 @@ def fileReaderBase64(file: str) -> List[bytes]:
     """
 
     with open(
-        file, "r"
+            file, "r"
     ) as f:  # Opens the file as f in read only mode ; BufferedReader f = new BufferedReader(new FileReader(file))
         text: List[str] = f.read().strip(
             "\n"
@@ -102,7 +97,10 @@ def fileReaderBase64(file: str) -> List[bytes]:
 
 # --- Single Byte XOR Functions ---
 def singleXORCracker(
-    texts: List[bytes], predicate: Callable[[str], int]
+    texts: List[bytes],
+    predicate: Callable[[str], int],
+    keySpaceStart=0,
+    keySpaxeEnd=256,
 ) -> List[Tuple[int, str]]:
     """
 
@@ -114,6 +112,8 @@ def singleXORCracker(
     Args:
     texts (List[bytes]): A list of different strings represented in bytes that need to be decrypted using a single byte XOR
     predicate (Callable[[str], int]): A function that takes in a string and returns an booleean indcating whether the text resembles English or not This function should be deteministic and return a binary "Yes" or "No" reponse
+    [Optional] keySpaceStart (int): The starting point of the key space
+    [Optional] keySpaceEnd (int): The ending point of the key space
 
     Returns:
     List[Tuple[int, str]]: A list of tuples where the first element is a potential key and the second element is the text that particular key would decrypt the text to to
@@ -125,10 +125,11 @@ def singleXORCracker(
 
     # For all possible keys for a single byte XOR
     # for(int key = 0; key < 256; key++)
-    for key in range(256):
+    for key in range(keySpaceStart, keySpaxeEnd):
         # k : is the key used to decrypt the text
         # string : is the decrypted text
-        k, string = singleByteXORDecoder(texts, int.to_bytes(key, 1), predicate)
+        k, string = singleByteXORDecoder(texts, int.to_bytes(key, 1),
+                                         predicate)
         if string is not None:  # If there is a match
             possible_keys_texts.append(
                 (k, string)
@@ -136,9 +137,8 @@ def singleXORCracker(
     return possible_keys_texts  # Return the list of possible keys text combinations
 
 
-def singleByteXORDecoder(
-    texts: List[bytes], key: bytes, predicate: Callable[[str], bool]
-) -> List[bytes]:
+def singleByteXORDecoder(texts: List[bytes], key: bytes,
+                         predicate: Callable[[str], bool]) -> List[bytes]:
     """
 
     The following function performs a single byte XOR on a list of text and a key
@@ -167,7 +167,8 @@ def singleByteXORDecoder(
     for text in texts:
 
         # Attempt to decrypt the text by XORing it with the key
-        extracted_text.append(implementXOR(text, key))  # Ex : 0x610x650xF6 --> "Ae.."
+        extracted_text.append(implementXOR(
+            text, key))  # Ex : 0x610x650xF6 --> "Ae.."
 
     # For all the texts that have been decrypted
     for text in extracted_text:
@@ -216,7 +217,9 @@ def mutiByteKeyBySingleByteXOR(texts: List[bytes], position: int, q: Queue):
 # -- Muti-byte deteming key size ---
 
 
-def keySizeIndexOfCoincidenceCalculator(text: bytes) -> bool:
+def keySizeIndexOfCoincidenceCalculator(text: bytes,
+                                        keySpaceStart=0,
+                                        keySpaxeEnd=256) -> bool:
     """
     The following function attempts to calculate the index of coincidence for a given text and key size
     Given a single byte key the function will attempt to loop through all possible combinations of that byte and find the `average`
@@ -225,6 +228,8 @@ def keySizeIndexOfCoincidenceCalculator(text: bytes) -> bool:
 
     Args:
     text (bytes): The text that is encrypted
+    [Optional] keySpaceStart (int): The starting point of the key space
+    [Optional] keySpaceEnd (int): The ending point of the key space
 
     Returns:
     bool : If this key size has the potential to be the correct key size
@@ -234,11 +239,12 @@ def keySizeIndexOfCoincidenceCalculator(text: bytes) -> bool:
     # For each possible key in a single byte XOR of a given length
     # For every possible key in a single byte XOR; for(int key = 0; key < 256; key++)
     # for(int key = 0; key < 256; key++)
-    for key in range(256):
+    for key in range(keySpaceStart, keySpaxeEnd):
 
         # For every key in this single byte XOR try that key and use it to decrypt the text
         # If the decrypyed text contains only valid characters then it has a high chance of being the correct key size
-        english = implementXOR(text, int.to_bytes(key, 1)).decode(errors="ignore")
+        english = implementXOR(text, int.to_bytes(key,
+                                                  1)).decode(errors="ignore")
         if validByteRange(english):
             return (
                 True,
@@ -278,7 +284,8 @@ def mutiByteXORKeyProcess(text: bytes, keySize: int, queue: Queue) -> None:
     key_info = keySizeIndexOfCoincidenceCalculator(sub_text)
     key: KeyAttributes = None
     if key_info[0]:
-        key = KeyAttributes(keySize, key_info[1], key_info[2], key_info[3], key_info[4])
+        key = KeyAttributes(keySize, key_info[1], key_info[2], key_info[3],
+                            key_info[4])
     queue.put((keySize, key))
 
 
@@ -325,16 +332,14 @@ def mutiByteXORKeySearch(text: bytes) -> int:
         # Collect the result and append it to the indexCoincidenceValues list ; indexCoincidenceValues.add(q.get())
         indexCoincidenceValues.append(q.get())
 
-    indexCoincidenceValues = filter(lambda x: x[1] is not None, indexCoincidenceValues)
+    indexCoincidenceValues = filter(lambda x: x[1] is not None,
+                                    indexCoincidenceValues)
 
     # Prints a formatted table of the index of coincidence values for all key sizes between 1 and 20
-    print(
-        f"Index of Coincidence Values for keys between 1 & 20 \n{'-'*20}\n"
-        + "Key Size | Index of Coincidence\n"
-        + "\n".join([f"{key}" for key in indexCoincidenceValues])
-        + "\n"
-        + "-" * 20
-    )
+    print(f"Index of Coincidence Values for keys between 1 & 20 \n{'-'*20}\n" +
+          "Key Size | Index of Coincidence\n" +
+          "\n".join([f"{key}"
+                     for key in indexCoincidenceValues]) + "\n" + "-" * 20)
 
     # # Return the key size with the smallest index of coincidence value
     # return indexCoincidenceValues[0][0]
@@ -343,21 +348,23 @@ def mutiByteXORKeySearch(text: bytes) -> int:
 # --- Muti-Byte XOR Decryption Functions ---
 
 
-def constructStrings(possible_keys) -> List[Tuple[List[int], str]]:
+def constructStrings(
+    possible_keys: List[List[Tuple[int, List[str]]]]
+) -> List[Tuple[List[int], str]]:
     """
 
     The following function reconstructs all possible keys and text combinations given a list of keys and their assiosated substrings
     The output will be a list of all possible combinations in the following format <List[int], str> where the first element is a list of keys and the second element is the combined decrypted text
 
     Args:
-    possible_keys (List[List[int, str]]): A list of keys and their assiosated substrings
+    possible_keys (List[List[Tuple[int, List[str]]]]): A list of keys and their assioscated substrings
 
     Returns:
     List[int, str]: A list of all possible combinations of keys and text
 
     """
 
-    strings_keys_list: List[Tuple[List[int], str]] = []
+    strings_keys_list: List[Tuple[List[int], List[str]]] = []
 
     # Construct all different combinations of keys using the cartesian product
     number_of_combinations = [
@@ -386,8 +393,7 @@ def constructStrings(possible_keys) -> List[Tuple[List[int], str]]:
             # If there are no more characters in the substring remove it from the list
             if len(decrypted_text[j % len(decrypted_text)]) > 1:
                 decrypted_text[j % len(decrypted_text)] = decrypted_text[
-                    j % len(decrypted_text)
-                ][1:]
+                    j % len(decrypted_text)][1:]
             else:
                 # Otherwise pop that character off from the substring
                 decrypted_text.pop(j % len(decrypted_text))
@@ -672,13 +678,13 @@ def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
     """
 
     # Intalizes lists for the decrypted parts used to decrypt the messages
-    decrypted_parts: List[List[int, str]] = [0] * keySize
+    decrypted_parts: List[List[int, List[str]]] = [0] * keySize
 
-    # List to store all processes workers
-    process_list: List[str] = []
+    # List to store all the threads
+    thread_list: List[str] = []
 
-    # A queue to store the result from each process
-    queue: Queue = ThreadQueue()
+    # A queue to store the result from each thread
+    queue: ThreadQueue = ThreadQueue()
 
     # For each substring of keySize where the subsrting is character of every x*nth + i character where i is the offset of the start of the key
     for i in range(keySize):
@@ -687,26 +693,29 @@ def decryptMutliByteXOR(text: bytes, keySize: int) -> None:
         # This is completed using list comprehension
         sub_text = [text[j] for j in range(len(text)) if j % keySize == i]
 
-        # Spawns a process for each substring of the text
-        # The process will be responsible for decrypting (by brute-force) that subsection of the text using a single byte XOR
+        # Spawns a thread for each substring of the text
+        # The thread who will be responsible for decrypting (by brute-force) that subsection of the text using a single byte XOR
         # It is also passed in its offset from the key (i) and the queue to store the results
-        process = Thread(target=mutiByteKeyBySingleByteXOR, args=([sub_text], i, queue))
-        process_list.append(process)
-        process.start()
+        thread: Thread = Thread(target=mutiByteKeyBySingleByteXOR,
+                                args=([sub_text], i, queue))
+        thread_list.append(thread)
+        thread.start()
 
-    # Join all the processes togtether once they have completed
-    # Collects the results from the queue deposited by each process and stores them in the decrypted_parts list
-    for process in process_list:
-        process.join()
+    # Join all the threads togtether once they have completed
+    # Collects the results from the queue deposited by each thread and stores them in the decrypted_parts list
+    for thread in thread_list:
+        thread.join()
         element = queue.get()  # Collect the result fronm the queue
-        level = element[0]  # See which part of the text it is (offset from the key)
-        decrypted_parts[level] = element[1]  # Collect the key, text combination pairs
+        level = element[
+            0]  # See which part of the text it is (offset from the key)
+        decrypted_parts[level] = element[
+            1]  # Collect the key, text combination pairs
 
     # Collect the results from each queue
     decrypted_parts[0] = list(
-        filter(MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER, decrypted_parts[0])
-    )
-    decrypted_parts = list(map(MUTI_BYTE_XOR_SUB_STRING_FILTER, decrypted_parts))
+        filter(MUTI_BYTE_XOR_SUB_STRING_INITAL_FILTER, decrypted_parts[0]))
+    decrypted_parts = list(
+        map(MUTI_BYTE_XOR_SUB_STRING_FILTER, decrypted_parts))
 
     result = constructStrings(decrypted_parts)
     for result in list(filter(lambda x: isEnglish(x[1]), result)):
@@ -723,14 +732,13 @@ def main():
     # Task 2A
     print("Task 2B\n", "-" * 20, "\n")
     for result in singleXORCracker(
-        fileReaderHex("./encrypted_files/Lab0.TaskII.B.txt"), SINGLE_BYTE_XOR_KEY_FILTER
-    ):
+            fileReaderHex("./encrypted_files/Lab0.TaskII.B.txt"),
+            SINGLE_BYTE_XOR_KEY_FILTER):
         print(f"Key: {result[0]}, Text: {result[1][0]}\n{" - "*20}\n")
-
+    print("Task 2C\n", "-" * 20, "\n")
     # Task 2B
     lab1_taskb_text = fileReaderBase64("./encrypted_files/Lab0.TaskII.C.txt")
     best_key_size = mutiByteXORKeySearch(lab1_taskb_text)
-    print("Best key size: ", best_key_size)
     decryptMutliByteXOR(lab1_taskb_text, 5)
 
 
