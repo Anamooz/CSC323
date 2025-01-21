@@ -1,6 +1,6 @@
 import base64
 from constants import FREQUENCY
-from typing import Dict
+from typing import Dict, List
 
 
 def ascii_to_hex(asciiText: bytes) -> str:
@@ -153,8 +153,7 @@ def indexCoincidence(inputText: str) -> float:
         except KeyError:  # Letter does not exist in the text
             pass
     try:
-        return total / ((message_length *
-                         (message_length - 1)) / numberOfChars)
+        return total / ((message_length * (message_length - 1)) / numberOfChars)
     except ZeroDivisionError:
         return 0
 
@@ -192,14 +191,16 @@ def frequencyDifference(input_string: str) -> float:
 
     freq = getFrequency(input_string)
     string_length = countNumberOfCharacters(
-        input_string, False)  # Number of alphabet characters in the string
+        input_string, False
+    )  # Number of alphabet characters in the string
     difference_total = 0
     for key in freq:
         try:
             # Calculate the difference between the frequency of the letter in the text and the expected frequency
             # Frequency = (Number of occurences of the letter / Length of the string) * 100
-            difference_total += abs(((freq[key] / string_length) * 100) -
-                                    FREQUENCY[key])
+            difference_total += abs(
+                ((freq[key] / string_length) * 100) - FREQUENCY[key]
+            )
         except (KeyError, ZeroDivisionError):
             try:
                 # Letter doesnt exist in our decrypted text
@@ -226,10 +227,12 @@ def isEnglish(input_string: str) -> bool:
 
     """
 
-    return (abs(indexCoincidence(input_string) - 1.7) < 0.5
-            and numberOfNonVowelWords(input_string) < 5
-            and frequencyDifference(input_string) <= 1.5
-            and validByteRange(input_string))
+    return (
+        abs(indexCoincidence(input_string) - 1.7) < 0.5
+        and numberOfNonVowelWords(input_string) < 5
+        and frequencyDifference(input_string) <= 1.5
+        and validByteRange(input_string)
+    )
 
 
 def implementXOR(inputString: bytes, key: bytes) -> bytes:
@@ -247,7 +250,8 @@ def implementXOR(inputString: bytes, key: bytes) -> bytes:
     """
 
     if len(inputString) > len(
-            key):  # Repeat the key if it is shorter than the input string
+        key
+    ):  # Repeat the key if it is shorter than the input string
         number = len(inputString) // len(key) + 1
         key *= number
     return bytes(
@@ -344,8 +348,157 @@ def findHighestToLowestCharacterFrequencyRatio(string: str) -> float:
 
     """
 
+    if len(string) == 0:
+        return 1
+
     freq = getFrequency(string)
     try:
         return max(freq.values()) / min(freq.values())
     except ZeroDivisionError:
         return max(freq.values())
+
+
+def fileReaderHex(file: str) -> List[bytes]:
+    """
+    The following function reads in a file of hex encoded strings and converts
+    them into ASCII bytes
+
+    Args:
+        file (str): The path to the file to be read
+
+    Returns:
+        List[bytes]: A list of bytes encoded as ASCII characters
+
+    """
+
+    with open(file, "r") as f:  # Opens the file in read mode
+        lines: List[str] = f.readlines()  # Reads in all the lines of the file
+        texts: List[str] = []
+        for line in lines:  # Loops through each line in the file
+            texts.append(
+                bytes.fromhex(line.strip())
+            )  # Converts the line from a hex string to bytes and appends it to the texts list
+    return texts
+
+
+def fileReaderBase64(file: str) -> List[bytes]:
+    """
+    The following function reads in a file in base64 encoding and
+    returns a list of bytes encoded as ASCII characters
+    The ASCII characters may or may not be printable
+
+    Args:
+    file (str): The path to the file to be read
+
+    Returns:
+    List[bytes]: A list of bytes encoded as ASCII characters
+    """
+
+    with open(
+        file, "r"
+    ) as f:  # Opens the file as f in read only mode ; BufferedReader f = new BufferedReader(new FileReader(file))
+        text: List[str] = f.read().strip(
+            "\n"
+        )  # Removes all the new line characters from the text ; ArrayList<String> text = new ArrayList<>(Arrays.asList(f.read().split("\n")))
+    return base64_to_ascii(
+        text
+    )  # Converts the base64 encoded text to ASCII characters in byte format ; Decoder decoder = Base64.getDecoder(); return decoder.decode(text)
+
+
+def fileReaderASCII(file: str) -> List[bytes]:
+    """
+    The following function reads in a file and returns a list of bytes encoded as ASCII characters
+
+    Args:
+    file (str): The path to the file to be read
+
+    Returns:
+    List[bytes]: A list of bytes encoded as ASCII characters
+
+    """
+
+    with open(file, "r") as f:  # Opens the file in read mode
+        lines: List[str] = f.readlines()  # Reads in all the lines of the file
+        texts: List[bytes] = []
+        for line in lines:  # Loops through each line in the file
+            texts.append(
+                line.strip().encode()
+            )  # Converts the line from a string to bytes and appends it to the texts list
+    return texts
+
+
+def vigenèreSubtractor(cipher: bytes, key: bytes) -> bytes:
+    """
+    The following function takes in a string in ASCII text and subtracts the ASCII value of it from the ASCII value of the key
+    It then returns the a new character with the result of the subtraction (shift)
+
+    Args:
+    cipher (bytes): The string to be decrypted
+    key (bytes): The key to be used for decryption
+
+    Returns:
+    bytes: The decrypted string in ASCII text (bytes)
+
+    """
+    if type(key) is bytes:
+        key = int.from_bytes(key, "little")
+
+    letters = bytearray()
+
+    for letter in cipher:
+        letters.append(((letter - key) % 26) + 65)
+    return bytes(letters)
+
+
+def countNGramsRatio(text: str) -> int:
+    text = text.lower()
+    COMMON_NTH_GRAMS = [
+        "th",
+        "he",
+        "in",
+        "en",
+        "nt",
+        "re",
+        "er",
+        "an",
+        "ti",
+        "es",
+        "on",
+        "at",
+        "se",
+        "nd",
+        "or",
+        "ar",
+        "al",
+        "te",
+        "co",
+        "de",
+        "to",
+        "ra",
+        "et",
+        "ed",
+        "it",
+        "sa",
+        "em",
+        "ro",
+        "the",
+        "and",
+        "tha",
+        "ent",
+        "ing",
+        "ion",
+        "tio",
+        "for",
+        "nde",
+        "has",
+        "nce",
+        "edt",
+        "tis",
+        "oft",
+        "sth",
+        "men",
+    ]
+    count = 0
+    for ngram in COMMON_NTH_GRAMS:
+        count += text.count(ngram)
+    return count / len(text)
