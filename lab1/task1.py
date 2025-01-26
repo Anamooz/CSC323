@@ -37,9 +37,9 @@ class MT19937:
         self.mt = [0] * self.n
 
         # Intalize the buffer with a list of numbers based off the seed
-        self.seed_mt(seed)
+        self.initialize_mt_generator(seed)
 
-    def seed_mt(self, seed):
+    def initialize_mt_generator(self, seed):
         """
 
         The following function initalizes the MT19937 generator from a seed.
@@ -63,7 +63,7 @@ class MT19937:
             self.n
         )  # Note this inital buffer is not used directly to generate numbers
 
-    def twist(self):
+    def refresh_buffer(self):
         """
 
         Generate the next set of n values in the buffer once the previous set of numbers have been exhausted.
@@ -100,7 +100,7 @@ class MT19937:
             self.mt[i] = offset_element ^ xA
         self.index = 0  # Reset the index back to 0
 
-    def extract_number(self):
+    def generate_number(self):
         """
 
         The following function that pops a number off the buffer and applies the tempering function to it.
@@ -117,7 +117,7 @@ class MT19937:
 
         # If the buffer has been exhausted generate a new set of numbers before popping the next number
         if self.index >= self.n:
-            self.twist()
+            self.refresh_buffer()
 
         # Pop the next number from the buffer
         y = self.mt[self.index]
@@ -173,7 +173,7 @@ class Test_MT19937(unittest.TestCase):
         seed = 88888
         mt = MT19937(seed)
         # Generate the first 10 numbers
-        results = [mt.extract_number() for _ in range(10)]
+        results = [mt.generate_number() for _ in range(10)]
         self.assertEqual(results, expected)
 
     def test_deterministic_output(self):
@@ -185,10 +185,10 @@ class Test_MT19937(unittest.TestCase):
         seed = 88888
         mt = MT19937(seed)
         # Generate the first 10 numbers
-        results = [mt.extract_number() for _ in range(10)]
+        results = [mt.generate_number() for _ in range(10)]
 
         mt2 = MT19937(seed)
-        results2 = [mt2.extract_number() for _ in range(10)]
+        results2 = [mt2.generate_number() for _ in range(10)]
 
         self.assertEqual(results, results2)
 
@@ -201,11 +201,11 @@ class Test_MT19937(unittest.TestCase):
         seed = 88888
         mt = MT19937(seed)
         # Generate the first 10 numbers
-        results = [mt.extract_number() for _ in range(10)]
+        results = [mt.generate_number() for _ in range(10)]
 
         # Generate the first 10 numbers with a different seed
         mt2 = MT19937(seed + 1)
-        results2 = [mt2.extract_number() for _ in range(10)]
+        results2 = [mt2.generate_number() for _ in range(10)]
 
         self.assertNotEqual(results, results2)
 
@@ -219,11 +219,11 @@ class Test_MT19937(unittest.TestCase):
         seed = 88888
         mt = MT19937(seed)
         # Generate the first 10 numbers
-        results = [mt.extract_number() for _ in range(10)]
+        results = [mt.generate_number() for _ in range(10)]
 
         # Generate the first 10 numbers with a different seed
         mt2 = MT19937(seed + 1)
-        results2 = [mt2.extract_number() for _ in range(10)]
+        results2 = [mt2.generate_number() for _ in range(10)]
 
         # There shoiuld be no intersection between the two sets of numbers generated
         for number in enumerate(results):

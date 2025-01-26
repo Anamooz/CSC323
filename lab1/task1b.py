@@ -10,7 +10,7 @@ def orcale():
     time.sleep(randint(5, 60))
     global seed
     seed = int(time.time())
-    x = MT19937(seed).extract_number()
+    x = MT19937(seed).generate_number()
     time.sleep(randint(5, 60))
     return x
 
@@ -26,7 +26,7 @@ def seedCracker(input_function: callable):
         # Create a new MT19937 with the seed
         mt = MT19937(seed2 + i)
         # Check if the output is the same
-        if mt.extract_number() == output:
+        if mt.generate_number() == output:
             print(f"Seed: {seed2 + i}")
             print(f"Seed matched: {(seed2 + i) == seed}")
             break
