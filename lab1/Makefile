@@ -1,2 +1,2 @@
 all:
-	g++ -fPIC -shared -o example.so example.cpp
+	g++ -o numbers.out  example.cpp       
