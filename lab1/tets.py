@@ -12,33 +12,53 @@ maxUInt32 = 2**32 - 1  # Max value for a 32 bit unsigned integer 0xFFFFFFFF
 
 def temper(number):
     y = number
+    print(y)
     y ^= (y >> u) & d
+    print(y)
     y ^= (y << s) & b
+    print(y)
     y ^= (y << t) & c
+    print(y)
     y ^= y >> l
+    print(y)
     return y
 
 
-def untemper(z):
-    """Reverse the tempering function of MT19937 to recover the original state value from output z."""
-
-    # Step 1: Reverse y = y ^ (y >> 18)  (right shift, MSB to LSB)
-    y = z
-    y ^= y >> 18
-
-    # Step 2: Reverse y = y ^ ((y << 15) & 0xEFC60000) (left shift, LSB to MSB)
-    y ^= (y << 15) & 0xEFC60000
-
-    # Step 3: Reverse y = y ^ ((y << 7) & 0x9D2C5680) (left shift, LSB to MSB)
-    for i in range(0, 32, 7):
-        y ^= (y << 7) & 0x9D2C5680
-
-    # Step 4: Reverse y = x ^ ((x >> 11) & 0xFFFFFFFF) (right shift, MSB to LSB)
-    x = y
-    for i in range(4):  # Since bits propagate, repeat a few times for full recovery
-        x ^= (x >> 11) & 0xFFFFFFFF
-    return x
+def reverseStepFour(output: int, shift: int):
+    return output ^ (output >> shift)
 
 
-print(temper(5))
+# def reverseStepThree(output: int, shift: int, mask: int):
+#     lower_bits = (output << shift) & 0xFFFFFFFF
+#     lower_bits &= mask
+#     return output ^ lower_bits
+
+
+def reverseStep3And2(output: int, shift: int, mask: int):
+    lower_bits = (0xFFFFFFFF >> (32 - shift)) & output
+    lower_bits = (lower_bits << shift) & mask
+    return output ^ lower_bits
+
+
+def reverseStepOne(output: int, shift: int, mask: int):
+    upper_bits = (0xFFFFFFFF << (32 - shift)) & output
+    upper_bits = (upper_bits >> shift) & mask
+    return output ^ upper_bits
+
+
+def untemper(number):
+    print("-----------------")
+    y = number
+    print(y)
+    y = reverseStepFour(y, l)
+    print(y)
+    y = reverseStep3And2(y, t, c)
+    print(y)
+    y = reverseStep3And2(y, s, b)
+    print(y)
+    y = reverseStepOne(y, u, d)
+    print(y)
+
+
+# print(temper(5))
 print(untemper(temper(5)))
