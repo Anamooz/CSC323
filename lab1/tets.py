@@ -28,12 +28,6 @@ def reverseStepFour(output: int, shift: int):
     return output ^ (output >> shift)
 
 
-# def reverseStepThree(output: int, shift: int, mask: int):
-#     lower_bits = (output << shift) & 0xFFFFFFFF
-#     lower_bits &= mask
-#     return output ^ lower_bits
-
-
 def reverseStep3And2(output: int, shift: int, mask: int):
     lower_bits = (0xFFFFFFFF >> (32 - shift)) & output
     lower_bits = (lower_bits << shift) & mask
