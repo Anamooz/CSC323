@@ -119,6 +119,7 @@ class MT19937:
 
         # If the buffer has been exhausted generate a new set of numbers before popping the next number
         if self.index >= self.n:
+            print("Twisting")
             self.twist()
 
         # Pop the next number from the buffer

@@ -1,3 +1,29 @@
+w, n, m, r = 32, 624, 397, 31
+a = 0x9908B0DF
+u, d = 11, 0xFFFFFFFF
+s, b = 7, 0x9D2C5680
+t, c = 15, 0xEFC60000
+l = 18
+f = 1812433253
+lower_mask = (1 << r) - 1  # All 31 lower bits are set
+upper_mask = 1 << r  # Only the 32nd bit is set
+maxUInt32 = 2**32 - 1  # Max value for a 32 bit unsigned integer 0xFFFFFFFF
+
+
+def temper(number):
+    y = number
+    print(y)
+    y ^= (y >> u) & d
+    print(y)
+    y ^= (y << s) & b
+    print(y)
+    y ^= (y << t) & c
+    print(y)
+    y ^= y >> l
+    print(y)
+    return y
+
+
 def bit_recovery(output: str, mask: str, shift: int, left_shift=True) -> int:
     """
     This function recovers the input bits from the output bits and tthe mask and shift given to the tempering function
@@ -31,7 +57,28 @@ def bit_recovery(output: str, mask: str, shift: int, left_shift=True) -> int:
     return int("".join(input_bit_string), 2)
 
 
-def bit_recovery_helper(output, mask, shift, index, left_shift):
+def bit_recovery_helper(
+    output: str, mask: str, shift: int, index: int, left_shift: bool
+) -> str:
+    """
+
+    This function is a helper function for the bit_recovery function
+    It detemines the value of the input bit at the current index
+
+    Args:
+        output: The output bits of the tempering function given as a binary string
+        mask: The mask used in the tempering function given as a binary string
+        shift: The shift amount used in the tempering function
+        index: The current index of the bit being calculated
+        left_shift: A boolean that determines if the shift is to the left or right
+            If True then the shift is to the left
+            Else the shift is to the right
+
+    Returns:
+        The value of the input bit at the current index as a binary string ( 0 | 1)
+
+    """
+
     # Find the next shift to the left or right
     new_indwex = 0
     if left_shift:
@@ -80,4 +127,34 @@ def bit_recovery_helper(output, mask, shift, index, left_shift):
             return "0"
 
 
-print(bit_recovery(format(12351, "032b"), format(0xFFFFFFFF, "032b"), 11, False))
+def convertIntToBinaryString(number: int) -> str:
+    """
+    This function converts an integer to a binary string
+
+    Args:
+        number: The integer to convert to a binary string
+
+    Returns:
+        The binary string representation of the input integer
+    """
+    return format(number, "032b")
+
+
+def untemper_number(number):
+    print("-----------------")
+    y = number
+    print(y)
+    y = bit_recovery(
+        convertIntToBinaryString(y), convertIntToBinaryString(0xFFFFFFFF), l, False
+    )
+    print(y)
+    y = bit_recovery(convertIntToBinaryString(y), convertIntToBinaryString(c), t)
+    print(y)
+    y = bit_recovery(convertIntToBinaryString(y), convertIntToBinaryString(b), s)
+    print(y)
+    return bit_recovery(
+        convertIntToBinaryString(y), convertIntToBinaryString(d), u, False
+    )
+
+
+print(untemper_number(temper(12345)))
