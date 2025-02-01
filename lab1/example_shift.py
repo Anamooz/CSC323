@@ -31,7 +31,28 @@ def bit_recovery(output: str, mask: str, shift: int, left_shift=True) -> int:
     return int("".join(input_bit_string), 2)
 
 
-def bit_recovery_helper(output, mask, shift, index, left_shift):
+def bit_recovery_helper(
+    output: str, mask: str, shift: int, index: int, left_shift: bool
+) -> str:
+    """
+
+    This function is a helper function for the bit_recovery function
+    It detemines the value of the input bit at the current index
+
+    Args:
+        output: The output bits of the tempering function given as a binary string
+        mask: The mask used in the tempering function given as a binary string
+        shift: The shift amount used in the tempering function
+        index: The current index of the bit being calculated
+        left_shift: A boolean that determines if the shift is to the left or right
+            If True then the shift is to the left
+            Else the shift is to the right
+
+    Returns:
+        The value of the input bit at the current index as a binary string ( 0 | 1)
+
+    """
+
     # Find the next shift to the left or right
     new_indwex = 0
     if left_shift:
