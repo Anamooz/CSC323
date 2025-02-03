@@ -12,15 +12,10 @@ maxUInt32 = 2**32 - 1  # Max value for a 32 bit unsigned integer 0xFFFFFFFF
 
 def temper(number):
     y = number
-    print(y)
     y ^= (y >> u) & d
-    print(y)
     y ^= (y << s) & b
-    print(y)
     y ^= (y << t) & c
-    print(y)
     y ^= y >> l
-    print(y)
     return y
 
 
@@ -141,17 +136,12 @@ def convertIntToBinaryString(number: int) -> str:
 
 
 def untemper_number(number):
-    print("-----------------")
     y = number
-    print(y)
     y = bit_recovery(
         convertIntToBinaryString(y), convertIntToBinaryString(0xFFFFFFFF), l, False
     )
-    print(y)
     y = bit_recovery(convertIntToBinaryString(y), convertIntToBinaryString(c), t)
-    print(y)
     y = bit_recovery(convertIntToBinaryString(y), convertIntToBinaryString(b), s)
-    print(y)
     return bit_recovery(
         convertIntToBinaryString(y), convertIntToBinaryString(d), u, False
     )
