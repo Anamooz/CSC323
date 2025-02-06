@@ -82,13 +82,29 @@ reset_button.submit()
 # Generate the reset link
 
 reset_link = BASE_PASSWORD_RESET_URL + combineTokens(generated_numbers)
-print(reset_link)
 
 # Go to that reset link
 
+driver.get(reset_link)
+
+
 # Provide a new password
 
+password_input = driver.find_element(By.ID, "password")
+password_input.send_keys("12345")
+reset_button = driver.find_element(By.ID, "Reset Password")
+reset_button.click()
+
 # Login
+
+# Goes to the login page
+driver.get("http://localhost:8080/")
+username_input = driver.find_element(By.ID, "usernameBox")
+username_input.send_keys("admin")
+password_input = driver.find_element(By.ID, "passwordBox")
+password_input.send_keys("12345")
+login_button = driver.find_element(By.ID, "loginButton")
+login_button.click()
 
 # Waits for the user to press enter and close the browser
 input("Press Enter to continue...")
