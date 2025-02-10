@@ -31,6 +31,5 @@ def seedCracker(input_function: callable):
             print(f"Seed matched: {(seed2 + i) == seed}")
             break
 
-
 if __name__ == "__main__":
     seedCracker(orcale)
