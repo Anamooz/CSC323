@@ -6,6 +6,11 @@ import time
 from untemper import *
 from task2 import *
 
+
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 USERNAME = "example_usernam2e"
 PASSWORD = "example_password"
 BASE_PASSWORD_RESET_URL = "http://localhost:8080/reset?token="

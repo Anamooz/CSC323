@@ -5,6 +5,10 @@ from tools import *
 
 global seed
 
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 
 def orcale():
     time.sleep(randint(5, 60))

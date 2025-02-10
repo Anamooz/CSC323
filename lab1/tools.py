@@ -2,6 +2,10 @@ import base64
 from constants import FREQUENCY
 from typing import Dict, List
 
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 
 def ascii_to_hex(asciiText: bytes) -> str:
     """

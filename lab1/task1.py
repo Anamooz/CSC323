@@ -1,6 +1,10 @@
 import unittest
 import unittest.util
 
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 
 class MT19937:
 

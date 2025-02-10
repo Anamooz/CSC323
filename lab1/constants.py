@@ -1,3 +1,7 @@
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 FREQUENCY = {
     "e": 12.02,
     "t": 9.1,

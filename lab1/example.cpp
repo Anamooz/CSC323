@@ -1,6 +1,10 @@
 #include <random>
 #include<iostream>
 #include <array>
+/**
+ * Name : Brian Kwong and Trycia Vong
+ */
+
 
 int main(int argc, char* argv[])
 {

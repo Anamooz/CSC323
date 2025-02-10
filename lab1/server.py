@@ -3,6 +3,10 @@ from web import form
 from task2 import MT19937
 import base64, datetime, hashlib, os
 
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 # token timeout, in minutes
 TIMEOUT = 5
 

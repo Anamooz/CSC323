@@ -9,6 +9,10 @@ lower_mask = (1 << r) - 1  # All 31 lower bits are set
 upper_mask = 1 << r  # Only the 32nd bit is set
 maxUInt32 = 2**32 - 1  # Max value for a 32 bit unsigned integer 0xFFFFFFFF
 
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 
 def temper(number):
     y = number
