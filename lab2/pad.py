@@ -7,14 +7,17 @@ def pad(msg: bytes) -> bytes:
         if (len(msg) % BLOCK_SIZE == 0)
         else (BLOCK_SIZE - len(msg) % BLOCK_SIZE)
     )
-    return msg + ((chr(padding_required).encode()) * padding_required)
+    return msg + ((padding_required.to_bytes(1)) * padding_required)
 
 
-def unpad(bytes: bytes) -> bytes:
-    padding_required_to_remove = bytes[len(bytes) - 1]
-    unpadded = bytes[: len(bytes) - padding_required_to_remove]
-    if bytes[len(unpadded) :] == (
-        chr(padding_required_to_remove).encode() * padding_required_to_remove
+def unpad(text: bytes) -> bytes:
+    print(len(text))
+    if len(text) <= 0 or len(text) % BLOCK_SIZE != 0:
+        raise ValueError("Invalid padding")
+    padding_required_to_remove = text[len(text) - 1]
+    unpadded = text[: len(text) - padding_required_to_remove]
+    if text[len(unpadded) :] == (
+        padding_required_to_remove.to_bytes(1) * padding_required_to_remove
     ):
         return unpadded
     else:
