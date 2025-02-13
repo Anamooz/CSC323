@@ -38,7 +38,7 @@ HOME_URL = "http://localhost:8080/home"
 response = session.get(HOME_URL)
 with open("output.html", "w") as f:
     f.write(response.text)
-driver = webdriver.Chrome()
+driver = webdriver.Edge()
 driver.get(LOGIN_URL)
 driver.add_cookie({"name": "auth_token", "value": ascii_to_hex(new_cookie)})
 driver.get(HOME_URL)
