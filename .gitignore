@@ -1,5 +1,6 @@
 
 .DS_Store
 ./__pycache__
+/pycache/*
 lab0/temp.py
 /lab1/__pycache__
