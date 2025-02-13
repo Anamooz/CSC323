@@ -1,3 +1,7 @@
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 import base64
 from constants import FREQUENCY
 from typing import Dict, List

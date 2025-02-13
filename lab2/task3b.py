@@ -1,3 +1,7 @@
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 import requests
 from tools import *
 from selenium import webdriver
@@ -36,7 +40,7 @@ session.cookies.set("auth_token", ascii_to_hex(new_cookie))
 
 HOME_URL = "http://localhost:8080/home"
 response = session.get(HOME_URL)
-with open("output.html", "w") as f:
+with open("output_task3b.html", "w") as f:
     f.write(response.text)
 driver = webdriver.Edge()
 driver.get(LOGIN_URL)
