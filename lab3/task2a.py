@@ -1,75 +1,5 @@
-# Note 1: All variables are unsigned 32-bit quantities and wrap modulo 232 when calculating, except for
-#         ml, the message length, which is a 64-bit quantity, and
-#         hh, the message digest, which is a 160-bit quantity.
-# Note 2: All constants in this pseudo code are in big endian.
-#         Within each word, the most significant byte is stored in the leftmost byte position
-from socket import ntohl
+# Used to compare our implementation of SHA-1 with the one from the Crypto library.
 from Crypto.Hash import SHA1
-
-# Initialize variables:
-
-# h0 = 0x67452301
-# h1 = 0xEFCDAB89
-# h2 = 0x98BADCFE
-# h3 = 0x10325476
-# h4 = 0xC3D2E1F0
-
-# Pre-processing:
-# append the bit '1' to the message e.g. by adding 0x80 if message length is a multiple of 8 bits.
-# append 0 ≤ k < 512 bits '0', such that the resulting message length in bits
-#    is congruent to −64 ≡ 448 (mod 512)
-# append ml, the original message length in bits, as a 64-bit big-endian integer.
-#    Thus, the total length is a multiple of 512 bits.
-
-# Process the message in successive 512-bit chunks:
-# break message into 512-bit chunks
-# for each chunk
-#     break chunk into sixteen 32-bit big-endian words w[i], 0 ≤ i ≤ 15
-
-#     Message schedule: extend the sixteen 32-bit words into eighty 32-bit words:
-#     for i from 16 to 79
-#         Note 3: SHA-0 differs by not having this leftrotate.
-#         w[i] = (w[i-3] xor w[i-8] xor w[i-14] xor w[i-16]) leftrotate 1
-
-#     Initialize hash value for this chunk:
-#     a = h0
-#     b = h1
-#     c = h2
-#     d = h3
-#     e = h4
-
-#     Main loop:[3][56]
-#     for i from 0 to 79
-#         if 0 ≤ i ≤ 19 then
-#             f = (b and c) or ((not b) and d)
-#             k = 0x5A827999
-#         else if 20 ≤ i ≤ 39
-#             f = b xor c xor d
-#             k = 0x6ED9EBA1
-#         else if 40 ≤ i ≤ 59
-#             f = (b and c) or (b and d) or (c and d)
-#             k = 0x8F1BBCDC
-#         else if 60 ≤ i ≤ 79
-#             f = b xor c xor d
-#             k = 0xCA62C1D6
-
-#         temp = (a leftrotate 5) + f + e + k + w[i]
-#         e = d
-#         d = c
-#         c = b leftrotate 30
-#         b = a
-#         a = temp
-
-#     Add this chunk's hash to result so far:
-#     h0 = h0 + a
-#     h1 = h1 + b
-#     h2 = h2 + c
-#     h3 = h3 + d
-#     h4 = h4 + e
-
-# Produce the final hash value (big-endian) as a 160-bit number:
-# hh = (h0 leftshift 128) or (h1 leftshift 96) or (h2 leftshift 64) or (h3 leftshift 32) or h4
-import struct
 
 
 def leftrotate(n, b):
@@ -126,7 +56,6 @@ def sha1Helper(message, i, h0, h1, h2, h3, h4):
             k = 0x8F1BBCDC
         # Last 20 values
         elif 60 <= j <= 79:
-
             f = b ^ c ^ d
             k = 0xCA62C1D6
 
@@ -150,6 +79,13 @@ def sha1Helper(message, i, h0, h1, h2, h3, h4):
 
 def sha1(message):
 
+    # Initialize variables:
+
+    # h0 = 0x67452301
+    # h1 = 0xEFCDAB89
+    # h2 = 0x98BADCFE
+    # h3 = 0x10325476
+    # h4 = 0xC3D2E1F0
     h0 = 0x67452301
     h1 = 0xEFCDAB89
     h2 = 0x98BADCFE
@@ -184,10 +120,31 @@ def sha1(message):
     return hh
 
 
-# Example usage:
-message = b"abc"
-hash_value = sha1(message)
-real_hash = SHA1.new(message).hexdigest()
-print(f"SHA-1 hash of '{message.decode()}' is: {hash_value:040x}")
-# Compare the hash value with the real hash value
-print(f"Real hash value is: {real_hash}")
+# Create unittest to ensure the hash value is correct
+import unittest
+
+
+class sha1_test(unittest.TestCase):
+
+    def test_sha1(self):
+        message = b"abc"
+        hash_value = sha1(message)
+        real_hash = SHA1.new(message).hexdigest()
+        self.assertEqual(hash_value, int(real_hash, 16))
+
+    def test_sha2(self):
+        message = b"Lucky merge on the gems,keys and greenhouses Testing on a message that is longer than 512 bits"
+        hash_value = sha1(message)
+        real_hash = SHA1.new(message).hexdigest()
+        self.assertEqual(hash_value, int(real_hash, 16))
+
+    def two_different_msg_test(self):
+        message1 = b"What the sigma"
+        message2 = b"What the sigma?"
+        hash_value1 = sha1(message1)
+        hash_value2 = sha1(message2)
+        self.assertNotEqual(hash_value1, hash_value2)
+
+
+if __name__ == "__main__":
+    unittest.main()
