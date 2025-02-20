@@ -4,6 +4,7 @@
 # Note 2: All constants in this pseudo code are in big endian.
 #         Within each word, the most significant byte is stored in the leftmost byte position
 from socket import ntohl
+from Crypto.Hash import SHA1
 
 # Initialize variables:
 
@@ -12,13 +13,6 @@ from socket import ntohl
 # h2 = 0x98BADCFE
 # h3 = 0x10325476
 # h4 = 0xC3D2E1F0
-
-h0 = ntohl(0x67452301)
-h1 = ntohl(0xEFCDAB89)
-h2 = ntohl(0x98BADCFE)
-h3 = ntohl(0x10325476)
-h4 = ntohl(0xC3D2E1F0)
-
 
 # Pre-processing:
 # append the bit '1' to the message e.g. by adding 0x80 if message length is a multiple of 8 bits.
@@ -89,7 +83,7 @@ def leftrotate(n, b):
     return ((n << b) | (n >> (32 - b))) & 0xFFFFFFFF
 
 
-def sha1Helper(msg, chunck, i, h0, h1, h2, h3, h4):
+def sha1Helper(message, i, h0, h1, h2, h3, h4):
     chunk = message[i : i + 64]
     # Create 80 byte buffer for SHA-1
     w = [0] * 80
@@ -156,7 +150,11 @@ def sha1Helper(msg, chunck, i, h0, h1, h2, h3, h4):
 
 def sha1(message):
 
-    global h0, h1, h2, h3, h4
+    h0 = 0x67452301
+    h1 = 0xEFCDAB89
+    h2 = 0x98BADCFE
+    h3 = 0x10325476
+    h4 = 0xC3D2E1F0
 
     # Pre-processing:
     # The message length in bits (always a multiple of the number of bits in a character).
@@ -178,9 +176,7 @@ def sha1(message):
 
     # Process the message in successive 512-bit chunks:
     for i in range(0, len(message), 64):
-        h0, h1, h2, h3, h4 = sha1Helper(
-            message, message[i : i + 64], i, h0, h1, h2, h3, h4
-        )
+        h0, h1, h2, h3, h4 = sha1Helper(message, i, h0, h1, h2, h3, h4)
 
     # Produce the final hash value (big-endian) as a 160-bit number:
     # The final hash is a concatenation of the 5 32-bit hash values
@@ -191,4 +187,7 @@ def sha1(message):
 # Example usage:
 message = b"abc"
 hash_value = sha1(message)
+real_hash = SHA1.new(message).hexdigest()
 print(f"SHA-1 hash of '{message.decode()}' is: {hash_value:040x}")
+# Compare the hash value with the real hash value
+print(f"Real hash value is: {real_hash}")
