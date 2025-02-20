@@ -79,10 +79,84 @@ import struct
 
 
 def leftrotate(n, b):
+    # Leff shift n by b bits
+    # OR w/ right shift n by 32 - b bits
+    # AND w/ 0xFFFFFFFF to get 32-bit
+
+    # In short shift n by b bits to the left and extract the lower 32 bits
+    # Assume bits wrap around
+
     return ((n << b) | (n >> (32 - b))) & 0xFFFFFFFF
 
 
+def sha1Helper(msg, chunck, i, h0, h1, h2, h3, h4):
+    chunk = message[i : i + 64]
+    # Create 80 byte buffer for SHA-1
+    w = [0] * 80
+
+    # break chunk into sixteen 32-bit big-endian words w[i], 0 ≤ i ≤ 15
+    # Get 4 bytes (32 bits) and convert it to big-endian
+    # The first 16 bytes of the buffer are the original message
+    for j in range(16):
+        w[j] = int.from_bytes(chunk[j * 4 : j * 4 + 4], "big")
+
+    # Message schedule: extend the sixteen 32-bit words into eighty 32-bit words
+    # AAppl
+    for j in range(16, 80):
+        # Create a 32-bit word
+        # N = (N-3 XOR N-8 XOR N-14 XOR N-16)
+        # Left shift N by 1
+        w[j] = leftrotate((w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16]), 1)
+
+    # Initialize hash value for this chunk:
+    a = h0
+    b = h1
+    c = h2
+    d = h3
+    e = h4
+
+    # Main hashing function loop:
+    # For each value
+    for j in range(80):
+        # First 20 values
+        if 0 <= j <= 19:
+            f = (b & c) | ((~b) & d)
+            k = 0x5A827999
+        # Next 20 values
+        elif 20 <= j <= 39:
+            f = b ^ c ^ d
+            k = 0x6ED9EBA1
+        # Next 20 values
+        elif 40 <= j <= 59:
+            f = (b & c) | (b & d) | (c & d)
+            k = 0x8F1BBCDC
+        # Last 20 values
+        elif 60 <= j <= 79:
+
+            f = b ^ c ^ d
+            k = 0xCA62C1D6
+
+        # Calculate the temp value for that index
+        temp = (leftrotate(a, 5) + f + e + k + w[j]) & 0xFFFFFFFF
+        e = d
+        d = c
+        c = leftrotate(b, 30)
+        b = a
+        a = temp
+
+    # Add this chunk's hash to result so far:
+    # Convert the hash to 32-bit
+    h0 = (h0 + a) & 0xFFFFFFFF
+    h1 = (h1 + b) & 0xFFFFFFFF
+    h2 = (h2 + c) & 0xFFFFFFFF
+    h3 = (h3 + d) & 0xFFFFFFFF
+    h4 = (h4 + e) & 0xFFFFFFFF
+    return h0, h1, h2, h3, h4
+
+
 def sha1(message):
+
+    global h0, h1, h2, h3, h4
 
     # Pre-processing:
     # The message length in bits (always a multiple of the number of bits in a character).
@@ -104,56 +178,12 @@ def sha1(message):
 
     # Process the message in successive 512-bit chunks:
     for i in range(0, len(message), 64):
-        chunk = message[i : i + 64]
-        # Create 80 byte buffer for SHA-1
-        w = [0] * 80
-
-        # break chunk into sixteen 32-bit big-endian words w[i], 0 ≤ i ≤ 15
-        # Get 4 bytes (32 bits) and convert it to big-endian
-        for j in range(16):
-            w[j] = int.from_bytes(chunk[j * 4 : j * 4 + 4], "big")
-
-        # Message schedule: extend the sixteen 32-bit words into eighty 32-bit words
-        for j in range(16, 80):
-            w[j] = leftrotate((w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16]), 1)
-
-        # Initialize hash value for this chunk:
-        a = h0
-        b = h1
-        c = h2
-        d = h3
-        e = h4
-
-        # Main loop:
-        for j in range(80):
-            if 0 <= j <= 19:
-                f = (b & c) | ((~b) & d)
-                k = 0x5A827999
-            elif 20 <= j <= 39:
-                f = b ^ c ^ d
-                k = 0x6ED9EBA1
-            elif 40 <= j <= 59:
-                f = (b & c) | (b & d) | (c & d)
-                k = 0x8F1BBCDC
-            elif 60 <= j <= 79:
-                f = b ^ c ^ d
-                k = 0xCA62C1D6
-
-            temp = (leftrotate(a, 5) + f + e + k + w[j]) & 0xFFFFFFFF
-            e = d
-            d = c
-            c = leftrotate(b, 30)
-            b = a
-            a = temp
-
-        # Add this chunk's hash to result so far:
-        h0 = (h0 + a) & 0xFFFFFFFF
-        h1 = (h1 + b) & 0xFFFFFFFF
-        h2 = (h2 + c) & 0xFFFFFFFF
-        h3 = (h3 + d) & 0xFFFFFFFF
-        h4 = (h4 + e) & 0xFFFFFFFF
+        h0, h1, h2, h3, h4 = sha1Helper(
+            message, message[i : i + 64], i, h0, h1, h2, h3, h4
+        )
 
     # Produce the final hash value (big-endian) as a 160-bit number:
+    # The final hash is a concatenation of the 5 32-bit hash values
     hh = (h0 << 128) | (h1 << 96) | (h2 << 64) | (h3 << 32) | h4
     return hh
 
