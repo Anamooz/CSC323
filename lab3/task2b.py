@@ -16,7 +16,9 @@ while True:
     message_hashed = bytes.fromhex(hash_function.hexdigest())[:6]
 
     if hashes.get(message_hashed.hex(), None) != None:
-        print(f"Collision found: {message} and {hashes[message_hashhed.hex()]}")
+        print(
+            f"Collision found: {message} and {hashes[message_hashed.hex()]} with hash {message_hashed.hex()} at iteration {i}"
+        )
         break
     else:
         hashes[message_hashed.hex()] = message
