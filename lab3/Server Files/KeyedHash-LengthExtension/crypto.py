@@ -1,9 +1,10 @@
 import os, hashlib
 
+
 class KeyedMAC:
     def __init__(self):
         self.key = os.urandom(hashlib.sha1().digest_size)
-        #self.key = b"YELLOW SUBMARINE" #For testing
+        # self.key = b"YELLOW SUBMARINE" #For testing
 
     def mac_sha1_sign(self, key, msg):
         return hashlib.sha1(key + msg).digest()
@@ -12,11 +13,11 @@ class KeyedMAC:
 
         tag_new = hashlib.sha1(key + msg).digest()
 
-        #An obvious check
+        # An obvious check
         if len(tag) != len(tag_new):
             return False
-        
-        #To avoid timing attacks, be sure to check all the bytes
+
+        # To avoid timing attacks, be sure to check all the bytes
         result = 0
         for x, y in zip(tag, tag_new):
             result |= x ^ y
