@@ -120,6 +120,10 @@ def sha1(message):
     return hh
 
 
+def sha1Digest(message):
+    return int.to_bytes(sha1(message), 20, "big")
+
+
 # Create unittest to ensure the hash value is correct
 import unittest
 
