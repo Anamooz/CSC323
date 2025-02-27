@@ -1,10 +1,30 @@
 import requests
 import time
 import string
+from scipy.stats import ttest_1samp
+from statistics import median
 
-BASE_URL = "http://localhost:8080/?q=foo&mac="
+BASE_URL = "http://localhost:6100/?q=foo&mac="
 MAC_LENGTH = 20  # HMAC-SHA1 produces a 20-byte MAC (40 hex characters)
 HEX_DIGITS = string.hexdigits[:16]  # 0-9, a-f # COllect all possuble hex characters
+NUM_REQUESTS = 5
+
+
+def findAnamoly(values):
+    lowest_p_val = 1
+    best_index = None
+    for i in range(len(values)):
+        # Remove that i value from the list
+        new_values = values[:i] + values[i + 1 :]
+        # Perform the t-test
+        t_stat, p_val = ttest_1samp(new_values, values[i])
+        # If the p-value is less than alpha, return the index
+        if p_val < lowest_p_val:
+            best_index = i
+            lowest_p_val = p_val
+    if lowest_p_val > 0.05:
+        exit(1)
+    return best_index
 
 
 def time_request(mac_guess):
@@ -14,6 +34,12 @@ def time_request(mac_guess):
     requests.get(url)
     end_time = time.perf_counter()
     return end_time - start_time
+
+
+def get_avg_response_time(mac_guess):
+    """Take multiple measurements and return the median to reduce noise."""
+    times = [time_request(mac_guess) for _ in range(NUM_REQUESTS)]
+    return median(times)  # Use median to filter out network noise
 
 
 def find_valid_mac():
@@ -36,11 +62,16 @@ def find_valid_mac():
                     + "0" * ((MAC_LENGTH * 2) - len(guessed_mac) - 2)
                 )
                 # Collect the timings for each candidate
-                duration = time_request(mac_try)
+                duration = get_avg_response_time(mac_try)
                 timings.append((candidate1 + candidate2, duration))
 
         # Sort candidates by longest response time
-        best_guess = max(timings, key=lambda x: x[1])[0]
+        timings_time = timings.copy()
+        timings = [x[1] for x in timings]
+        anamoly = findAnamoly(timings)
+        best_guess = timings_time[anamoly][0]
+        if best_guess == guessed_mac[-2:]:
+            exit(1)
         guessed_mac += best_guess
         print(f"Progress: {guessed_mac}")
 
