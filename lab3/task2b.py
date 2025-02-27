@@ -1,3 +1,7 @@
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 from string import ascii_letters
 from random import choices
 from Crypto.Hash import SHA1

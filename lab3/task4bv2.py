@@ -1,3 +1,7 @@
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 import requests
 import time
 import string

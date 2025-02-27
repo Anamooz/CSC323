@@ -1,3 +1,7 @@
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 # Used to compare our implementation of SHA-1 with the one from the Crypto library.
 from Crypto.Hash import SHA1
 

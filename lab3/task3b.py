@@ -1,3 +1,7 @@
+"""
+Name : Brian Kwong and Trycia Vong
+"""
+
 # function hmac is
 #     input:
 #         key:        Bytes    // Array of bytes
