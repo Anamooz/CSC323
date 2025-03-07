@@ -4,7 +4,7 @@ example_transaction = {
         "id": "aa31fb4ef777b9e3e0cbeccba6ff58b5b2fecb61b6902f4f4561f7291fcad17c",
         "n": 0,
     },
-    "sig": "674a8311d10d4dd6fd1d5bb4b9d27a5ea48acad066784e6b3505d02d88fc4a690ff20d478de6a5535d3491a2fb62a929",
+    "sig": "e0ef08972d4abb6e7f61e24311e371a179121e1b4b3de8101a2213abcc25f638169e493e46dbe7eb8892380ca797e31a",
     "output": [
         {
             "value": 25,
@@ -51,7 +51,7 @@ example_blockchain = [
             "output": [
                 {
                     "value": 25,
-                    "pub_key": "366bd531ff0767ccd59764a85c9cdbd3645377bff56caf18657bad154aa9890ca6942db5f8ac23eeb50cda327ea6bec4",
+                    "pub_key": "b860c1d191c3dd0da23d158569f01a686d9b03572b9486dd4d6bf48adfd484ef03747bf2324232b9d88b1704ed02be7a",
                 },
                 {
                     "value": 25,
