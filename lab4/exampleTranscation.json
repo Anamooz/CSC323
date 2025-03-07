@@ -1,0 +1,22 @@
+{
+   "type": 1,
+   "input": {
+    "id": "b4b9b8f78ab3dc70833a19bf7f2a0226885ae2416d41f4f0f798762560b81b60",
+    "n": 0
+   },
+   "sig": "ca0ebbc83ac5777f12f727d1cb9ef77d1daf6b152aac3f8c58f376ffccfeb40bebed17d732b9ebeb56468c66e7b8105f",
+   "output": [
+    {
+     "value": 25,
+     "pub_key": "825f8bdb84e691f8a0ff1f4b65aadb0dc036cd006672653ff77f3dbc4667c85aded761de13e115708e03f66c1e327b69"
+    },
+    {
+     "value": 25,
+     "pub_key": "c26cfef538dd15b6f52593262403de16fa2dc7acb21284d71bf0a28f5792581b4a6be89d2a7ec1d4f7849832fe7b4daa"
+    },
+    {
+     "value": 50,
+     "pub_key": "c26cfef538dd15b6f52593262403de16fa2dc7acb21284d71bf0a28f5792581b4a6be89d2a7ec1d4f7849832fe7b4daa"
+    }
+]
+}
