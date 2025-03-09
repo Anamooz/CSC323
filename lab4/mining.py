@@ -8,11 +8,19 @@ import subprocess
 import cupy as cp
 import numpy as np
 import cudf
-from multiprocessing import Process, Pool, Queue, cpu_count
+from multiprocessing import Process, Queue, cpu_count
+import transaction as tx
 
 
 DIFFICULTY = 0x0000007FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 CORES = cpu_count()
+
+hasGPU = False
+try:
+    subprocess.check_output("nvidia-smi")
+    hasGPU = True
+except Exception:
+    pass
 
 
 def hashCPUHelper(data, queue, reporter=False):
@@ -51,53 +59,57 @@ def hashCPU(transaction, previousBlockId):
     return result[0], result[1] * (CORES - 1)
 
 
-def convertBytesToHex(data):
-    return str(data.hex())
-
-
-def hashGPU(transaction, previousBlockId, batch_size=2500000):
+def hashGPU(transaction, previousBlockId, batch_size=3200000):
     size = 0
     attempts = 0
-    gpu_block = cudf.Series([transaction + previousBlockId] * batch_size)
+    gpu_block = cudf.Series(
+        [json.dumps(transaction, sort_keys=True) + previousBlockId] * batch_size
+    )
     while size == 0:
         nonces = cp.random.bytes(AES.block_size * len(gpu_block))
         # Convert the bytes to a numpy array
-        np_nonce_bytes = np.frombuffer(nonces, dtype=np.uint8)
-        # Convert bytes to hex
-        nonces = np.array(
-            [bytes(b).hex() for b in np_nonce_bytes.reshape(batch_size, AES.block_size)]
+        np_nonce_bytes = np.ndarray(
+            (batch_size, AES.block_size), dtype=np.uint8, buffer=nonces
         )
+        # Convert bytes to hex
+        nonces = np.array([bytes(b).hex() for b in np_nonce_bytes])
 
         nonces = cudf.Series(nonces)
         combined_block = gpu_block + nonces
         hashed = combined_block.hash_values(method="sha256")
 
-        # Convert the hash to a string\
-        hashed = hashed.astype("str")
         # Filter hashes that are less than the difficulty
-        hashed = hashed[hashed.str[:6] == "000000"]
+        hashed = hashed[hashed.astype("str").str.startswith("000000")]
 
         size = len(hashed)
         if size > 0:
-            print(hashed)
+            nonce = int(str(hashed).split(" ")[0])
             attempts += batch_size
-            return hashed.iloc[0], attempts
+            return nonces.iloc[nonce], attempts
         else:
             attempts += batch_size
+
         if attempts % batch_size == 0:
             print("Attempts: ", attempts)
 
 
-def createBlock(transaction, previousBlockId, gpu=False):
+def createBlock(transaction, previousBlockId, publicKeys, gpu=False):
+
+    # Adds the coinbase transaction to the transaction list
+    transaction["output"].append(
+        {
+            "value": 50,
+            "pub_key": publicKeys.to_string().hex(),
+        }
+    )
 
     # Find the nonce as Proof of Work
     start = time.perf_counter()
 
-    hashFunction = hashGPU if gpu else hashCPU
+    hashFunction = hashGPU if hashGPU else hashCPU
     nonce, attempts = hashFunction(transaction, previousBlockId)
 
     end = time.perf_counter()
-    print("Time to find nonce: ", end - start)
     print("MegaHashes per second: ", attempts / (end - start) / 1000000)
 
     proof_of_work = hashlib.sha256(
@@ -121,35 +133,31 @@ def createBlock(transaction, previousBlockId, gpu=False):
     return block
 
 
-from statistics import mean
+def mine(client, lock):
+    while lock.locked():
+        if len(client.utx) > 0:
+            transaction = client.utx.pop(0)
+            previousBlock = client.blockchain[-1]["id"]
+            if tx.verify(client.blockchain, transaction):
 
-# hasGPU = False
-# try:
-#     subprocess.check_output("nvidia-smi")
-#     hasGPU = True
-# except Exception:
-#     pass
-# print(createBlock(example_transaction, example_blockchain[0]["id"]))
-previousBlockId = "12345"
-
-megaHashes = {}
-
-trails = [i * 100000 for i in range(40)]
-
-for trials in trails:
-
-    results = []
-    for i in range(5):
-        start = time.perf_counter()
-        nonce, attempts = hashGPU(
-            json.dumps(example_transaction, sort_keys=True), previousBlockId, 1000000
-        )
-        end = time.perf_counter()
-        megaHash = attempts / (end - start) / 1000000
-        results.append(megaHash)
-    megaHashes[trials] = mean(results)
-    print("MegaHashes per second: ", megaHashes[trials], "for", trials, "trials")
-
-# Sort results by value
-megaHashes = dict(sorted(megaHashes.items(), key=lambda item: item[1]))
-print(megaHashes)
+                new_block = createBlock(transaction, previousBlock, client.pk, hasGPU)
+                # Check if any new blocks were added to the blockchain
+                # Have to redo
+                while new_block["prev"] != client.blockchain[-1]["id"]:
+                    previousBlock = client.blockchain[-1]["id"]
+                    new_block = createBlock(
+                        transaction, previousBlock, client.pk, hasGPU
+                    )
+                if tx.verifyBlock(client.blockchain, new_block):
+                    client.blockchain.append(new_block)
+                    client.blockChainSize += 1
+                    client.send_to_nodes(new_block)
+                    client.wallet, client.balance = tx.calculateUserBalance(
+                        client.blockchain, client.sk
+                    )
+                    print("Block mined")
+                else:
+                    print("Block not valid")
+            else:
+                print("Transaction not valid")
+        time.sleep(1)

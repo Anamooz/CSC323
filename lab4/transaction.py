@@ -1,6 +1,10 @@
 from ecdsa import VerifyingKey, SigningKey
 import json
 from exampleTransaction import example_transaction, example_blockchain
+import hashlib
+from mining import createBlock, hasGPU
+
+DIFFICULTY = 0x0000007FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
 
 def verifySignature(transaction, pubKey):
@@ -153,7 +157,33 @@ def createTransaction(wallet, balance, sk, amount, to):
     return transaction
 
 
-secret_key = SigningKey.from_string(bytes.fromhex("<input here>"))
-user_wallet, user_balance = calculateUserBalance(example_blockchain, secret_key)
-transaction = createTransaction(user_wallet, user_balance, secret_key, 10, "123456")
-print(transaction)
+def verifyBlock(blockchain, block):
+    # Check if the block is a valid block
+
+    # First check if the previous block is in the blockchain
+    if block["prev"] == blockchain[-1]["id"]:
+
+        # Check if the id of the block is valid
+        block_id = hashlib.sha256(
+            json.dumps(block["tx"], sort_keys=True).encode("utf8")
+        ).hexdigest()
+        if block_id == block["id"]:
+            # Check if the proof of work is valuid
+            blockHash = hashlib.sha256(
+                json.dumps(block["tx"], sort_keys=True).encode("utf8")
+                + block["prev"].encode("utf-8")
+                + block["nonce"].encode("utf-8")
+            ).hexdigest()
+            if blockHash.startswith("000000"):
+                return True
+
+    return False
+
+
+# secret_key = SigningKey.from_string(bytes.fromhex("<input here>"))
+# user_wallet, user_balance = calculateUserBalance(example_blockchain, secret_key)
+# transaction = createTransaction(user_wallet, user_balance, secret_key, 10, "123456")
+# print(transaction)
+
+# new_block = createBlock(example_transaction, example_blockchain[-1]["id"], hasGPU)
+# print(verifyBlock(example_blockchain, new_block))
