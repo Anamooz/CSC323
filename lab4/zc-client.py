@@ -5,6 +5,7 @@ from transaction import *
 from mining import mine, newBlockArrived
 from threading import Thread, Lock
 
+# Server connections constants
 SERVER_ADDR = "zachcoin.net"
 SERVER_PORT = 9067
 
@@ -25,6 +26,7 @@ class ZachCoinClient(Node):
     sk = None
     pk = None
 
+    # Array used to store the blockchain of ZachCoin
     # Hardcoded gensis block
     blockchain = [
         {
@@ -50,12 +52,18 @@ class ZachCoinClient(Node):
         }
     ]
 
+    # Keeps track of the size of the blockchain
     blockChainSize = 1
 
+    # Array used to store unverified transactions
     utx = []
+
+    # Initializes the client node object
 
     def __init__(self, host, port, id=None, callback=None, max_connections=0):
         super(ZachCoinClient, self).__init__(host, port, id, callback, max_connections)
+
+    # Node functions used for debugging
 
     def outbound_node_connected(self, connected_node):
         print("outbound_node_connected: " + connected_node.id)
@@ -70,29 +78,60 @@ class ZachCoinClient(Node):
         print("outbound_node_disconnected: " + connected_node.id)
 
     def node_message(self, connected_node, data):
-        # print("node_message from " + connected_node.id + ": " + json.dumps(data,indent=2))
+        """
+        The following function parses incoming messages from the network
+        and calls the appropriate functions to handle the message.
+
+        :param connected_node: The node that sent the message
+        :param data: The message sent by the node
+
+        :return: None
+        """
+
         print("node_message from " + connected_node.id)
 
+        # If there is data in the message
         if data != None:
+            # And there is a valid type feild in the message
             if "type" in data:
-                print("Received data of type: ", data["type"])
+
+                # If the incoming message is a transaction
                 if data["type"] == self.TRANSACTION:
+                    # Add the transaction to the unverified transaction pool
                     self.utx.append(data)
+                # If the incoming message is the entire blockchain
+                # Only occurs during initial connection
                 elif data["type"] == self.BLOCKCHAIN:
+
+                    # Set the blockchain to the incoming blockchain
                     self.blockchain = data["blockchain"]
+
+                    # Recalculate the user's balance and wallet from the new blockchain
                     self.wallet, self.balance = calculateUserBalance(
                         self.blockchain, self.sk
                     )
+
+                    # Set the blockchain size to the length of the new blockchain
                     self.blockChainSize = len(self.blockchain)
+
+                # If the incoming message is the entire UTX pool
                 elif data["type"] == self.UTXPOOL:
+                    # Set the UTX pool to the incoming UTX pool
                     self.utx = data["utxpool"]
+
+                # If the incoming message is a block
                 elif data["type"] == self.BLOCK:
-                    print("Received block")
+
+                    # Read in the global newBlockArrived lock
                     global newBlockArrived
+
+                    # Set the newBlockArrived flag to True
                     newBlockArrived = True
+
+                    # Verify the block
                     if verifyBlock(self.blockchain, data):
                         self.blockchain.append(data)
-                        # Remove from utxpool
+                        # Remove the block's transactions from the UTX pool
                         for utx in self.utx:
                             if (
                                 utx["input"]["id"] == data["tx"]["input"]["id"]
@@ -100,13 +139,19 @@ class ZachCoinClient(Node):
                             ):
                                 self.utx.remove(utx)
                                 break
+
+                        # Update the user's balance and wallet
                         self.wallet, self.balance = calculateUserBalance(
                             self.blockchain, self.sk
                         )
+
+                        # Increment the blockchain size
                         self.blockChainSize += 1
-                        print("Block added to blockchain")
+
+                        # Turn off the newBlockArrived flag
                         newBlockArrived = False
                     else:
+                        # If the new block is invalid, print the invalid block
                         print("Block verification failed", json.dumps(data, indent=2))
 
     def node_disconnect_with_outbound_node(self, connected_node):
@@ -116,24 +161,61 @@ class ZachCoinClient(Node):
         print("node is requested to stop!")
 
 
-def printWallet(client):
+def printWallet(client: ZachCoinClient):
+    """
+
+    The following function prints the user's wallet and balance.
+
+    :param client: The ZachCoinClient object
+
+    :return: None
+    """
+
+    # Header
     print("=" * 30, "Wallet", "=" * 30)
+
+    # For each entry in the user's wallet
     for entry in client.wallet:
+        # Print the block id
         print("Block Id", entry[:-1])
+        # Print the index of the transaction in the block being referenced
         print("Index: ", entry[-1])
+        # Print the amount of ZachCoin in the block available to the user
         print("Amount: ", client.wallet[entry]["amount"])
         print("-" * 70)
+    # Print the accumulated balance of the user
     print("Balance: ", client.balance)
 
 
-def newTranactionGUI(client, sk):
+def newTranactionGUI(client: ZachCoinClient, sk: SigningKey):
+    """
+
+    The following function is a interface for creating a new transaction.
+    It asks for the amount and recipient's public key.
+    It then validates those inputs before passing them onto newTransaction function.
+
+
+    :param client: The ZachCoinClient object
+    :param sk: The user's signing key (private key)
+
+    :return: None
+    """
+
+    # Clears the screen
     os.system("cls" if os.name == "nt" else "clear")
-    printWallet(client)
+
+    # Prints the user's balance
+    print(" Balance: ", client.balance)
     print(f'{"="*30} New Transaction {"="*30}')
+    # Loops until the user enters valid input
     while True:
         try:
+            # Asks for the recipient's public key
             to = input("Enter the recipient's public key: ")
+            # Asks for the amount to
             amount = int(input("Enter the amount to send: "))
+
+            # Asks them to confirm the transaction
             input(
                 "Confirm?\n\tTo: "
                 + to
@@ -143,12 +225,21 @@ def newTranactionGUI(client, sk):
             )
             newTransaction(client, sk, to, amount)
             break
+        # If the user enters invalid input
+        # Try again
         except ValueError:
             print("Error: Invalid input.")
 
 
 def main():
+    """
+    This function acts as the main thread for the ZachCoin™ client.
+    It initializes the client object and connects to the server.
+    It then enters an continuous loop that allows the user to interact with the client, dispatching wok to other threads as needed.
 
+    """
+
+    # Validate command line arguments
     if len(sys.argv) < 3:
         print("Usage: python3", sys.argv[0], "CLIENTNAME PORT")
         quit()
@@ -161,6 +252,7 @@ def main():
         with open(keypath, "w") as f:
             f.write(sk.to_string().hex())
             f.close()
+    # Of keys are found, load them in from the file
     else:
         with open(keypath) as f:
             try:
@@ -171,25 +263,34 @@ def main():
 
     # Create a client object
     client = ZachCoinClient("127.0.0.1", int(sys.argv[2]), sys.argv[1])
+
+    # Set the client's public and private keys
     client.sk = sk
     client.pk = vk
     client.debug = False
 
+    # Wait for the client to start
     time.sleep(1)
 
     client.start()
 
+    # Wait for the client to start up and initialize
     time.sleep(1)
 
     # Connect to server
     client.connect_with_node(SERVER_ADDR, SERVER_PORT)
     print("Starting ZachCoin™ Client:", sys.argv[1])
+    # Wait for the client to connect to the server
     time.sleep(2)
 
+    # Initialize mining thread as false and creates a lock for the thread
+    # Will use as ITC for communication between main thread and mining thread
     mine_thread = None
     mine_lock = Lock()
 
+    # Main menu loop
     while True:
+        # Clears the screen and prints available options
         os.system("cls" if os.name == "nt" else "clear")
         slogan = ' You can\'t spell "It\'s a Ponzi scheme!" without "ZachCoin" '
         print(
@@ -201,51 +302,76 @@ def main():
         print("=" * len(slogan), "\n")
         print("Balance: ", client.balance, "\n")
         x = input(
-            "\t0: Print keys\n\t1: Print blockchain\n\t2: Print UTX pool\n\t3: New Transaction\n\t4: Mine Zackcoin\n\t5. SHow Wallet\n\t6. Exit\n\nEnter your choice -> "
+            "\t0: Print keys\n\t1: Write blockchain\n\t2: Write UTX pool\n\t3: New Transaction\n\t4: Mine Zackcoin\n\t5. Show Wallet\n\t6. Exit\n\nEnter your choice -> "
         )
         try:
+            # Collects the user's input
             x = int(x)
         except:
+            # If the user enters invalid input
+            # Try again
             print("Error: Invalid menu option.")
             input()
             continue
+
+        # If the user selected 0, print their keys
         if x == 0:
+            # Convert the keys to hex and print them
             print("sk: ", sk.to_string().hex())
             print("vk: ", vk.to_string().hex())
+        # If the user selected 1, write the blockchain to blockchain.json
         elif x == 1:
-            print(json.dumps(client.blockchain, indent=1))
+            # Open or create the blockchain.json file
+            with open("blockchain.json", "w") as f:
+                # Write the blockchain to the file
+                f.write(json.dumps(client.blockchain, indent=1))
+        # If the user selected 2, write the UTX pool to utxpool.json
         elif x == 2:
-            print(json.dumps(client.utx, indent=1))
+            with open("utxpool.json", "w") as f:
+                f.write(json.dumps(client.utx, indent=1))
+        # If the user selected 3, create a new transaction
         elif x == 3:
+            # Creates and starts a new thread for handling new transaction GUI
             thread = Thread(target=newTranactionGUI, args=(client, sk))
             thread.start()
             thread.join()
             continue
+        # If the user selected 4, start the mining thread
         elif x == 4:
+            # If the mining thread is already running
             if mine_thread is not None:
+                # Ask the user if they want to terminate the thread
                 print("Mining thread already running\n\t Want to terminate?")
                 if input("Enter Y to terminate: ") == "Y":
                     print("Terminating mining thread after this block")
+                    # Signal the mining thread to terminate
                     mine_lock.release()
+                    # Wait for the thread to terminate
                     mine_thread.join()
+                    # Clears the mining thread
                     mine_thread = None
             else:
+                # Else, start the mining thread
+                # Enable the mining thread to run
                 mine_lock.acquire()
                 mine_thread = Thread(target=mine, args=(client, mine_lock, True))
                 mine_thread.start()
                 print("Mining thread started")
+        # If the user selected 5, print the user's wallet
         elif x == 5:
+            # Call the printWallet function
             printWallet(client)
+        # Finally, if the user selected 6, exit the client
         elif x == 6:
             print("Exiting ZachCoin™ Client")
+            # If the mining thread is running, terminate it
             if mine_thread is not None:
                 mine_lock.release()
                 mine_thread.join()
+            # Disconnect the client from the server node
             client.stop()
+            # Exit the client
             sys.exit(0)
-        # TODO: Add options for creating and mining transactions
-        # as well as any other additional features
-
         input()
 
 

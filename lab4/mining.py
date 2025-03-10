@@ -9,6 +9,8 @@ import transaction as tx
 import os
 import platform
 import gc
+from ecdsa import VerifyingKey
+from threading import Lock
 
 
 newBlockArrived = False
@@ -62,7 +64,7 @@ except Exception:
     pass
 
 
-def hashCPUHelper(data, queue, newBlock, reporter=False):
+def hashCPUHelper(data: bytes, queue: Queue, newBlock, reporter=False) -> None:
     """
     The following function mines ZackCoin using POW on the CPU
     It continues generates a new nonce hashes the data and nonce
@@ -70,10 +72,10 @@ def hashCPUHelper(data, queue, newBlock, reporter=False):
 
     Each CPU core will run this function
 
-    :param data: The data to be hashed
-    :param queue: The queue to store the nonce and attempts
-    :param newBlock: The event to check if a new block has been found
-    :param reporter: A boolean to check if the function should print the number of attempts
+    :param data: The data to be hashed (bytes)
+    :param queue: The queue to store the nonce and attempts (Queue)
+    :param newBlock: The event to check if a new block has been found (Event)
+    :param reporter: A boolean to check if the function should print the number of attempts (bool)
 
     :return: None
     """
@@ -111,7 +113,7 @@ def hashCPUHelper(data, queue, newBlock, reporter=False):
     queue.put((nonce, attempts))
 
 
-def hashCPU(transaction, previousBlockId) -> tuple[str, int]:
+def hashCPU(transaction: dict, previousBlockId: str) -> tuple[str, int]:
     """
 
     The following function manages the different mining process on the CPU
@@ -123,11 +125,11 @@ def hashCPU(transaction, previousBlockId) -> tuple[str, int]:
     If a new block is found, the process will be terminated and the nonce will be set to None through IPC events
 
 
-    :param transaction: The transaction to be hashed
-    :param previousBlockId: The previous block id
+    :param transaction: The transaction to be hashed (dict)
+    :param previousBlockId: The previous block id (str)
 
-    :return nonce: The nonce that satisfies the difficulty
-    :return attempts: The number of attempts to find the nonce
+    :return nonce: The nonce that satisfies the difficulty (str)
+    :return attempts: The number of attempts to find the nonce (int)
     """
 
     # Converts the tranaction and previous block id to seralized json bytes to be hashed
@@ -181,8 +183,8 @@ def hashGPU(
             - Minimum GPU requirement is the NVIDIA GPU with CUDA 11.2 and Compute Capability 6.0 or higher (GTX 16x series or higher)
                 - CUDA 11.x must be installed
 
-    :param transaction: The transaction to be hashed
-    :param previousBlockId: The previous block id
+    :param transaction: The transaction to be hashed (dict)
+    :param previousBlockId: The previous block id (str)
     :param batch_size: The number of nonces to generate at a time (default is 1,000,000)
 
     """
@@ -251,10 +253,26 @@ def hashGPU(
             attempts += batch_size
             print("Attempts: ", attempts)
 
+    # If there is a nerw block discard the current nonce and re
     return None, attempts
 
 
-def createBlock(transaction, previousBlockId, publicKeys):
+def createBlock(
+    transaction: dict, previousBlockId: str, publicKeys: VerifyingKey
+) -> dict:
+    """
+    The following function creates a new block by adding the coinbase tranaction,
+    Calculate/find the nonce that satisfies the difficulty and creates the proof of work
+    The block is then returned with its nonce, prroof of work hash and coinbase tranaction inserted
+    It also reports the speed of mining in MegaHashes per second
+    Tranaction validality is checked before creating the block
+
+    :param transaction: The valid transaction to be hashed and placed in the block (dict)
+    :param previousBlockId: The previous block id (str)
+    :param publicKeys: The public key of the miner (VerifyingKey)
+
+    :return block: The new block with the coinbase transaction, nonce, proof of work hash and previous block id (dict)
+    """
 
     # Adds the coinbase transaction to the transaction list
     transaction["output"].append(
@@ -264,21 +282,29 @@ def createBlock(transaction, previousBlockId, publicKeys):
         }
     )
 
-    # Find the nonce as Proof of Work
+    # Start the timer to calculate the speed of mining
     start = time.perf_counter()
 
+    # Determine the hash function to use
     hashFunction = hasGPU if hashGPU else hashCPU
+    # Find the nonce as Proof of Work and calculate the proof of work hash
     nonce, attempts = hashFunction(transaction, previousBlockId)
 
+    # Stop the performance timer
+    end = time.perf_counter()
+
+    # Clear the memory
     gc.collect()
 
-    end = time.perf_counter()
+    # Calculate the speed of mining and print it
     print("MegaHashes per second: ", attempts / (end - start) / 1000000)
 
+    # If the nonce is None, return None means a new block came in
     if nonce is None:
 
         return None
 
+    # Calculate the proof of work hash
     proof_of_work = hashlib.sha256(
         json.dumps(transaction, sort_keys=True).encode("utf8")
         + previousBlockId.encode("utf-8")
@@ -297,18 +323,39 @@ def createBlock(transaction, previousBlockId, publicKeys):
         "pow": proof_of_work,
     }
 
+    # Return the new block
     return block
 
 
-def mine(client, lock, autoGenerate=False):
+def mine(client, lock: Lock, autoGenerate=False):
+    """
+    The following function picks a unverified transaction from the unverified transaction pool,
+    verfies the transaction, calculates the correct nonce and proof of work hash and broadcasts the block to the network
+    The function also writes the blockchain and unverified transaction pool to a file for logging purposes
 
+    A valid transaction is:
+        - Not already in the blockchain
+        - Not a double spending transaction
+        - Correctly signed by the sender (Verify using the public key)
+        - Amounts are correct and in the correct format
+            - Input == Output
+            - Change is calculated appropriately
+        - Input transactions are valid (in the blockchain)
+
+    :param client: The client object that contains the blockchain and unverified transaction pool (Client)
+    :param lock: A lock to indicate if the miner should continue mining (Lock)
+    :param autoGenerate: A boolean to check if the miner should automatically generate transactions if the unverified transaction pool is empty (bool)
+
+    :return: None
+    """
+
+    # Links in the  global vairable to see if a new block has arrived
     global newBlockArrived
 
     # Sets this thread with the highest priority
     # This is to ensure that the mining thread is always running
     # even if the other threads are running
     # Check platform and apply the appropriate command to set the thread priority
-
     try:
         # Windows
         if os.name == "nt":
@@ -335,20 +382,16 @@ def mine(client, lock, autoGenerate=False):
         print("Couldn't set thread priority")
         pass
 
-    # Write block to file
-    with open("blockchain.json", "w") as f:
-        jsonstr = json.dumps(client.blockchain, indent=4)
-        f.write(jsonstr)
-
-    # Write utx to file
-    with open("utx.json", "w") as f:
-        jsonstr = json.dumps(client.utx, indent=4)
-        f.write(jsonstr)
-
+    # Counter to keep track of the time since the last block was mined
     secondsSinceLastBlock = 0
 
+    # While the lock is still engaged indicating the miner should continue mining
     while lock.locked():
+
+        # Check if there are any unverified transactions in the UTX pool
         if len(client.utx) > 0:
+
+            # Get the first transaction in the UTX pool
             transaction = client.utx.pop(0)
 
             # Check if the tx already in the blockchain
@@ -357,40 +400,50 @@ def mine(client, lock, autoGenerate=False):
                     print("Transaction already in blockchain or double spending")
                     continue
                 else:
+
+                    # Get the last block in the blockchain
                     previousBlock = client.blockchain[-1]["id"]
+
+                    # Verify the transaction
                     if tx.verify(client.blockchain, transaction):
 
+                        # Creates a new block with a valid nonce and proof of work hash
+                        # Updates tre transaction with coinbase transaction
                         new_block = createBlock(
                             transaction, previousBlock, client.pk, hasGPU
                         )
 
+                        # Check if a new block was added by the network before miner can generate a block
                         if new_block is None:
 
-                            # Wait until the new block is processed
-
+                            # Wait until the newly added block is processed
                             while newBlockArrived:
                                 time.sleep(1)
 
+                            # Check if the block added by the network contains the same transaction
                             if tx.compareTransactions(
                                 transaction, client.blockchain[-1]["tx"]
                             ):
+                                # If so move onto the next transaction
                                 print("Another miner found the block")
                             else:
-                                # Try again with this block
+                                # Try again with this transaction
                                 client.utx.insert(0, transaction)
 
                             continue
 
-                        # Write block to file
-                        with open("blockchain.json", "w") as f:
-                            jsonstr = json.dumps(client.blockchain, indent=4)
-                            f.write(jsonstr)
-
+                        # Send this new block to the network
                         client.send_to_nodes(new_block)
+
+                        # Reset the counter of when the last block was mined
                         secondsSinceLastBlock = 0
+
+                        # Clear the transaction
                         transaction = None
+
                         print("Block mined")
 
+                        # Wait until the new block is processed
                         while newBlockArrived:
                             time.sleep(1)
                     else:
@@ -398,8 +451,17 @@ def mine(client, lock, autoGenerate=False):
             except Exception:
                 print("Transaction not valid")
         else:
+
+            # If the miner should automatically generate transactions after a certain idle time
             if autoGenerate and secondsSinceLastBlock > 30:
+                # Generate a new transaction
                 tx.newTransaction(client, client.sk, client.pk.to_string().hex(), 1)
+
+                # Reset the counter of when the last block was mined
                 secondsSinceLastBlock = 0
+
+            # Sleep for 10 seconds and check for any new blocks
             time.sleep(10)
+
+            # Increment the counter of when the last block was mined
             secondsSinceLastBlock += 10
