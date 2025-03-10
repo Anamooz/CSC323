@@ -187,47 +187,70 @@ def hashGPU(
 
     """
 
+    # Import the necessary libraries
     import cupy as cp
     import numpy as np
     import cudf
 
-    size = 0
-    attempts = 0
+    # Initialize the variables
+    size = 0  # Size of the number hashes that are less than the difficulty found
+    attempts = 0  # Number of attempts to find the nonce
+    # Allocate GPU memory for the block that stores the original block [transaction + previousBlockId] data.
+    # Make batch_size copies of the block soopreations can be parallelized
     gpu_block = cudf.Series(
         [json.dumps(transaction, sort_keys=True) + previousBlockId] * batch_size
     )
+
+    # Read in from global space to check if a new block has arrived
     global newBlockArrived
+
+    # While the size of the hashes that are less than the difficulty is 0 and no new block has arrived
     while size == 0 and not newBlockArrived:
+
+        # Generate batch size number of random nonces
         nonces = cp.random.bytes(AES.block_size * len(gpu_block))
-        # Convert the bytes to a numpy array
+        # Convert the bytes to a numpy array so we can convert each to a hex string
+        # Each row is 16 bytes long
+        # Batch size number of rows
         np_nonce_bytes = np.ndarray(
             (batch_size, AES.block_size), dtype=np.uint8, buffer=nonces
         )
-        # Convert bytes to hex
+
+        # For each row convert the bytes to a hex string
         nonces = np.array([bytes(b).hex() for b in np_nonce_bytes])
 
+        # Copy that array to the GPU
         nonces = cudf.Series(nonces)
+
+        # Vector add the two blocks together
         combined_block = gpu_block + nonces
+
+        # For each row find their sha256 hash
         hashed = combined_block.hash_values(method="sha256")
 
         # Filter hashes that are less than the difficulty
         # Check if the first 6 characters are 0
         # 7th character is a number between 0 and 7
-
         hashed = hashed[hashed.astype("str").str.slice(0, 7) < "0000007"]
 
+        # Get the size of the hashes that are less than the difficulty
         size = len(hashed)
         if size > 0:
-            nonce = int(str(hashed).split(" ")[0])
-            attempts += batch_size
-            if newBlockArrived:
-                break
-            return nonces.iloc[nonce], attempts
-        else:
+            # Update the number of attempts
             attempts += batch_size
 
-        if attempts % batch_size == 0:
+            # Check if there has been a new block if so this hash becomes invalid
+            if newBlockArrived:
+                break
+
+            # Extract the nonce that generated the hash
+            nonce = int(str(hashed).split(" ")[0])
+            return nonces.iloc[nonce], attempts
+        else:
+            # Update the number of attempts
+            attempts += batch_size
             print("Attempts: ", attempts)
+
     return None, attempts
 
 
