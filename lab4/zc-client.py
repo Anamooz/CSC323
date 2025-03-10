@@ -106,6 +106,8 @@ class ZachCoinClient(Node):
                         self.blockChainSize += 1
                         print("Block added to blockchain")
                         newBlockArrived = False
+                    else:
+                        print("Block verification failed", json.dumps(data, indent=2))
 
     def node_disconnect_with_outbound_node(self, connected_node):
         print("node wants to disconnect with oher outbound node: " + connected_node.id)
