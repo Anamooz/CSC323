@@ -7,44 +7,51 @@ from mining import createBlock, hasGPU
 DIFFICULTY = 0x0000007FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
 
-def verifySignature(transaction, pubKey):
+def newTransaction(client, sk, to, amount):
     try:
-        # Remove coin base transaction
-        # Coin base transactions are not signed and are located at index 2
-        transaction["output"] = transaction["output"][:2]
+        transaction = createTransaction(client.wallet, client.balance, sk, amount, to)
+        client.send_to_nodes(transaction)
+    except Exception as Errro:
+        print("Failed to create transaction: ", Errro)
+
+
+def verifySignature(transaction, pubKey, fromChain=False):
+    try:
+
+        # If from the blockchain, remove the coin base or last transaction
+        coreTranaction = transaction["output"]
+        if fromChain:
+            coreTranaction = transaction["output"][:-1]
 
         # Extract the signature and the message from the transaction
         signature = bytes.fromhex(transaction["sig"])
 
         message = json.dumps(transaction["input"], sort_keys=True).encode(
             "utf8"
-        ) + json.dumps(transaction["output"], sort_keys=True).encode("utf8")
+        ) + json.dumps(coreTranaction, sort_keys=True).encode("utf8")
 
         # Create Verify Key
         vk = VerifyingKey.from_string(bytes.fromhex(pubKey))
         # Verify the signature
         return vk.verify(signature, message)
-    except:
+    except Exception as e:
         return False
 
 
 def signTransaction(transaction, privKey):
 
-    # Remove any coin base transaction
-    # Coin base transactions are not signed and are located at index 2
-    transaction["output"] = transaction["output"][:2]
-
     # Extract the message from the transaction
+
     message = json.dumps(transaction["input"], sort_keys=True).encode(
         "utf8"
-    ) + json.dumps(transaction["output"], sort_keys=True).encode("utf8")
+    ) + json.dumps(transaction["output"][:2], sort_keys=True).encode("utf8")
 
     # Sign the message
     signature = privKey.sign(message)
     return signature.hex()
 
 
-def verify(blockchain, transaction):
+def verify(blockchain, transaction, mined=False):
     # Check if the tranaction?
     if transaction["type"] == 1:
 
@@ -73,7 +80,7 @@ def verify(blockchain, transaction):
         # Check if the transaction amount is valid
         if previousAmount == transaction["output"][0]["value"] + change:
             # Verify the signature of this transaction
-            return verifySignature(transaction, previousTransactions["pub_key"])
+            return verifySignature(transaction, previousTransactions["pub_key"], mined)
         else:
             return False
     else:
@@ -92,26 +99,46 @@ def calculateUserBalance(blockchain, sk_key):
         # Check if its a payout of the user by checking signature
 
         try:
-            if verifySignature(block["tx"], pub_key):
+            if verifySignature(block["tx"], pub_key, True):
                 # Get the input block id
                 block_id = block["tx"]["input"]["id"]
+                n = block["tx"]["input"]["n"]
                 # Remove block from wallet if it used as input
                 try:
-                    del wallet[block_id]
+                    del wallet[block_id + str(n)]
+
                 except KeyError:
                     # Throw new blockchain error
                     raise Exception("Invalid blockchain")
             # Incoming payment elsewise?
-            elif block["tx"]["output"][0]["pub_key"] == pub_key:
+            if block["tx"]["output"][0]["pub_key"] == pub_key:
                 amount = block["tx"]["output"][0]["value"]
                 # Add the block to the wallet
-                wallet[block["id"]] = {"amount": amount, "block": block, "index": 0}
-            elif block["tx"]["output"][1]["pub_key"] == pub_key:
+                wallet[block["id"] + "0"] = {
+                    "amount": amount,
+                    "block": block,
+                    "index": 0,
+                }
+            if block["tx"]["output"][1]["pub_key"] == pub_key:
                 amount = block["tx"]["output"][1]["value"]
                 # Add the block to the wallet
-                wallet[block["id"]] = {"amount": amount, "block": block, "index": 1}
+                wallet[block["id"] + "1"] = {
+                    "amount": amount,
+                    "block": block,
+                    "index": 1,
+                }
+            if block["tx"]["output"][2]["pub_key"] == pub_key:
+                amount = block["tx"]["output"][2]["value"]
+                # Add the block to the wallet
+                wallet[block["id"] + "2"] = {
+                    "amount": amount,
+                    "block": block,
+                    "index": 2,
+                }
         except IndexError:
             pass
+
+            # Incoming payment elsewise?
 
     # Calculate the balance of the user
     balance = 0
@@ -154,6 +181,13 @@ def createTransaction(wallet, balance, sk, amount, to):
     # Sign the transaction
     transaction["sig"] = signTransaction(transaction, sk)
 
+    # Remove block from wallet if it used as input
+    try:
+        del wallet[input_block["block"]["id"] + str(input_block["index"])]
+    except KeyError:
+        # Throw new blockchain error
+        raise Exception("Invalid blockchain")
+
     return transaction
 
 
@@ -168,15 +202,48 @@ def verifyBlock(blockchain, block):
             json.dumps(block["tx"], sort_keys=True).encode("utf8")
         ).hexdigest()
         if block_id == block["id"]:
-            # Check if the proof of work is valuid
-            blockHash = hashlib.sha256(
-                json.dumps(block["tx"], sort_keys=True).encode("utf8")
-                + block["prev"].encode("utf-8")
-                + block["nonce"].encode("utf-8")
-            ).hexdigest()
-            if blockHash.startswith("000000"):
-                return True
 
+            # Verfiy tranmsaction
+            if verify(blockchain, block["tx"], True):
+                # Check if the proof of work is valuid
+                blockHash = hashlib.sha256(
+                    json.dumps(block["tx"], sort_keys=True).encode("utf8")
+                    + block["prev"].encode("utf-8")
+                    + block["nonce"].encode("utf-8")
+                ).hexdigest()
+                if int(blockHash, 16) < DIFFICULTY:
+                    return True
+
+    return False
+
+
+def compareTransactions(transaction1, transaction2):
+    # Hash both the input and output of the transactions
+    hash1 = hashlib.sha256(
+        json.dumps(transaction1["input"], sort_keys=True).encode("utf8")
+        + json.dumps(transaction1["output"], sort_keys=True).encode("utf8")
+    ).hexdigest()
+    hash2 = hashlib.sha256(
+        json.dumps(transaction2["input"], sort_keys=True).encode("utf8")
+        + json.dumps(transaction2["output"], sort_keys=True).encode("utf8")
+    ).hexdigest()
+
+    # Also hash only the inputs to check for double spending
+    hash1_input = hashlib.sha256(
+        json.dumps(transaction1["input"], sort_keys=True).encode("utf8")
+    ).hexdigest()
+    hash2_input = hashlib.sha256(
+        json.dumps(transaction2["input"], sort_keys=True).encode("utf8")
+    ).hexdigest()
+
+    # Compare the hashes
+    return hash1_input == hash2_input or hash1 == hash2
+
+
+def inBlockchain(blockchain, transaction):
+    for block in blockchain:
+        if compareTransactions(block["tx"], transaction):
+            return True
     return False
 
 

@@ -2,7 +2,7 @@ import sys, time, json, os
 from ecdsa import VerifyingKey, SigningKey
 from p2pnetwork.node import Node
 from transaction import *
-from mining import mine
+from mining import mine, newBlockArrived
 from threading import Thread, Lock
 
 SERVER_ADDR = "zachcoin.net"
@@ -78,7 +78,6 @@ class ZachCoinClient(Node):
                 print("Received data of type: ", data["type"])
                 if data["type"] == self.TRANSACTION:
                     self.utx.append(data)
-                    self.send_to_node(data)
                 elif data["type"] == self.BLOCKCHAIN:
                     self.blockchain = data["blockchain"]
                     self.wallet, self.balance = calculateUserBalance(
@@ -88,9 +87,11 @@ class ZachCoinClient(Node):
                 elif data["type"] == self.UTXPOOL:
                     self.utx = data["utxpool"]
                 elif data["type"] == self.BLOCK:
+                    print("Received block")
+                    global newBlockArrived
+                    newBlockArrived = True
                     if verifyBlock(self.blockchain, data):
                         self.blockchain.append(data)
-
                         # Remove from utxpool
                         for utx in self.utx:
                             if (
@@ -99,12 +100,12 @@ class ZachCoinClient(Node):
                             ):
                                 self.utx.remove(utx)
                                 break
-
                         self.wallet, self.balance = calculateUserBalance(
                             self.blockchain, self.sk
                         )
                         self.blockChainSize += 1
                         print("Block added to blockchain")
+                        newBlockArrived = False
 
     def node_disconnect_with_outbound_node(self, connected_node):
         print("node wants to disconnect with oher outbound node: " + connected_node.id)
@@ -113,40 +114,42 @@ class ZachCoinClient(Node):
         print("node is requested to stop!")
 
 
-def newTransaction(client, sk):
-    os.system("cls" if os.name == "nt" else "clear")
-    print(f'{"="*30} New Transaction {"="*30}')
+def printWallet(client):
+    print("=" * 30, "Wallet", "=" * 30)
+    for entry in client.wallet:
+        print("Block Id", entry[:-1])
+        print("Index: ", entry[-1])
+        print("Amount: ", client.wallet[entry]["amount"])
+        print("-" * 70)
+    print("Balance: ", client.balance)
 
+
+def newTranactionGUI(client, sk):
+    os.system("cls" if os.name == "nt" else "clear")
+    printWallet(client)
+    print(f'{"="*30} New Transaction {"="*30}')
     while True:
         try:
             to = input("Enter the recipient's public key: ")
             amount = int(input("Enter the amount to send: "))
+            input(
+                "Confirm?\n\tTo: "
+                + to
+                + "\n\tAmount: "
+                + str(amount)
+                + "\n\tPress Enter to confirm"
+            )
+            newTransaction(client, sk, to, amount)
             break
         except ValueError:
             print("Error: Invalid input.")
-    input(
-        "Confirm?\n\tTo: "
-        + to
-        + "\n\tAmount: "
-        + str(amount)
-        + "\n\tPress Enter to confirm"
-    )
-    try:
-        transaction = createTransaction(client.wallet, client.balance, sk, amount, to)
-        client.utx.append(transaction)
-        client.semd_to_nodes(transaction)
-    except Exception as Errro:
-        print("", "=" * 30, "\n", Errro, "\n", "=" * 30)
-        input()
 
 
 def main():
 
-    # if len(sys.argv) < 3:
-    #     print("Usage: python3", sys.argv[0], "CLIENTNAME PORT")
-    #     quit()
-
-    sys.argv = ["zc-client.py", "bkwong01", "9067"]
+    if len(sys.argv) < 3:
+        print("Usage: python3", sys.argv[0], "CLIENTNAME PORT")
+        quit()
 
     # Load keys, or create them if they do not yet exist
     keypath = "./" + sys.argv[1] + ".key"
@@ -196,7 +199,7 @@ def main():
         print("=" * len(slogan), "\n")
         print("Balance: ", client.balance, "\n")
         x = input(
-            "\t0: Print keys\n\t1: Print blockchain\n\t2: Print UTX pool\n\t3: New Transaction\n\t4: Mine Zackcoin\n\t5. Exit\n\nEnter your choice -> "
+            "\t0: Print keys\n\t1: Print blockchain\n\t2: Print UTX pool\n\t3: New Transaction\n\t4: Mine Zackcoin\n\t5. SHow Wallet\n\t6. Exit\n\nEnter your choice -> "
         )
         try:
             x = int(x)
@@ -212,7 +215,7 @@ def main():
         elif x == 2:
             print(json.dumps(client.utx, indent=1))
         elif x == 3:
-            thread = Thread(target=newTransaction, args=(client, sk))
+            thread = Thread(target=newTranactionGUI, args=(client, sk))
             thread.start()
             thread.join()
             continue
@@ -226,10 +229,12 @@ def main():
                     mine_thread = None
             else:
                 mine_lock.acquire()
-                mine_thread = Thread(target=mine, args=(client, mine_lock))
+                mine_thread = Thread(target=mine, args=(client, mine_lock, True))
                 mine_thread.start()
                 print("Mining thread started")
         elif x == 5:
+            printWallet(client)
+        elif x == 6:
             print("Exiting ZachCoin™ Client")
             if mine_thread is not None:
                 mine_lock.release()

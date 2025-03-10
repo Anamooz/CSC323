@@ -2,28 +2,29 @@ import hashlib
 import json
 from Crypto import Random
 from Crypto.Cipher import AES
-from exampleTransaction import example_transaction, example_blockchain
 import time
 import subprocess
-import cupy as cp
-import numpy as np
-import cudf
 from multiprocessing import Process, Queue, cpu_count
 import transaction as tx
+import os
+import gc
 
 
+newBlockArrived = False
 DIFFICULTY = 0x0000007FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 CORES = cpu_count()
 
 hasGPU = False
 try:
     subprocess.check_output("nvidia-smi")
-    hasGPU = True
+    hasGPU = False
 except Exception:
     pass
 
 
 def hashCPUHelper(data, queue, reporter=False):
+    global newBlockArrived
+
     nonce = Random.new().read(AES.block_size).hex()
     attempts = 0
     while (
@@ -32,11 +33,14 @@ def hashCPUHelper(data, queue, reporter=False):
             16,
         )
         > DIFFICULTY
+        and not newBlockArrived
     ):
         nonce = Random.new().read(AES.block_size).hex()
         attempts += 1
         if reporter and attempts % 1000000 == 0:
             print("Attempts: ", attempts * CORES)
+    if newBlockArrived:
+        nonce = None
     queue.put((nonce, attempts))
 
 
@@ -59,13 +63,20 @@ def hashCPU(transaction, previousBlockId):
     return result[0], result[1] * (CORES - 1)
 
 
-def hashGPU(transaction, previousBlockId, batch_size=3200000):
+def hashGPU(transaction, previousBlockId, batch_size=1000000):
+
+    import cupy as cp
+    import numpy as np
+    import cudf
+
     size = 0
     attempts = 0
     gpu_block = cudf.Series(
         [json.dumps(transaction, sort_keys=True) + previousBlockId] * batch_size
     )
-    while size == 0:
+    global newBlockArrived
+    while size == 0 and not newBlockArrived:
+        print("New block arrived: ", newBlockArrived)
         nonces = cp.random.bytes(AES.block_size * len(gpu_block))
         # Convert the bytes to a numpy array
         np_nonce_bytes = np.ndarray(
@@ -79,18 +90,24 @@ def hashGPU(transaction, previousBlockId, batch_size=3200000):
         hashed = combined_block.hash_values(method="sha256")
 
         # Filter hashes that are less than the difficulty
-        hashed = hashed[hashed.astype("str").str.startswith("000000")]
+        # Check if the first 6 characters are 0
+        # 7th character is a number between 0 and 7
+
+        hashed = hashed[hashed.astype("str").str.slice(0, 7) < "0000007"]
 
         size = len(hashed)
         if size > 0:
             nonce = int(str(hashed).split(" ")[0])
             attempts += batch_size
+            if newBlockArrived:
+                break
             return nonces.iloc[nonce], attempts
         else:
             attempts += batch_size
 
         if attempts % batch_size == 0:
             print("Attempts: ", attempts)
+    return None, attempts
 
 
 def createBlock(transaction, previousBlockId, publicKeys, gpu=False):
@@ -109,8 +126,14 @@ def createBlock(transaction, previousBlockId, publicKeys, gpu=False):
     hashFunction = hashGPU if hashGPU else hashCPU
     nonce, attempts = hashFunction(transaction, previousBlockId)
 
+    gc.collect()
+
     end = time.perf_counter()
     print("MegaHashes per second: ", attempts / (end - start) / 1000000)
+
+    if nonce is None:
+
+        return None
 
     proof_of_work = hashlib.sha256(
         json.dumps(transaction, sort_keys=True).encode("utf8")
@@ -133,31 +156,106 @@ def createBlock(transaction, previousBlockId, publicKeys, gpu=False):
     return block
 
 
-def mine(client, lock):
+def mine(client, lock, autoGenerate=False):
+
+    # Sets this thread with the highest priority
+    # This is to ensure that the mining thread is always running
+    # even if the other threads are running
+
+    # Check platform
+
+    global newBlockArrived
+
+    try:
+        # Windows
+        if os.name == "nt":
+            import win32api
+            import win32process
+            import win32con
+
+            handle = win32api.GetCurrentThread()
+            win32process.SetThreadPriority(handle, win32process.THREAD_PRIORITY_HIGHEST)
+            print("Thread priority set to highest")
+        # Unix/Linux
+        elif os.name == "posix" or hasattr(os, "sched_get_priority_max"):
+            policy = os.sched_getscheduler(0)
+            param = os.sched_param(os.sched_get_priority_max(policy))
+            os.sched_setscheduler(0, policy, param)
+            print("Thread priority set to highest")
+        else:
+            # Unsupported OS
+            pass
+    except Exception:
+        # If the sys admin disabled the priority change
+        # Or some other error
+        # Just run mine with normal priority
+        print("Couldn't set thread priority")
+        pass
+
+    # Write block to file
+    with open("blockchain.json", "w") as f:
+        jsonstr = json.dumps(client.blockchain, indent=4)
+        f.write(jsonstr)
+
+    # Write utx to file
+    with open("utx.json", "w") as f:
+        jsonstr = json.dumps(client.utx, indent=4)
+        f.write(jsonstr)
+
+    secondsSinceLastBlock = 0
+
     while lock.locked():
         if len(client.utx) > 0:
-            transaction = client.utx.pop(0)
-            previousBlock = client.blockchain[-1]["id"]
-            if tx.verify(client.blockchain, transaction):
 
-                new_block = createBlock(transaction, previousBlock, client.pk, hasGPU)
-                # Check if any new blocks were added to the blockchain
-                # Have to redo
-                while new_block["prev"] != client.blockchain[-1]["id"]:
-                    previousBlock = client.blockchain[-1]["id"]
+            transaction = client.utx.pop(0)
+
+            # Check if the tx already in the blockchain
+
+            if tx.inBlockchain(client.blockchain, transaction):
+                print("Transaction already in blockchain or double spending")
+                continue
+            else:
+                previousBlock = client.blockchain[-1]["id"]
+                if tx.verify(client.blockchain, transaction):
+
                     new_block = createBlock(
                         transaction, previousBlock, client.pk, hasGPU
                     )
-                if tx.verifyBlock(client.blockchain, new_block):
-                    client.blockchain.append(new_block)
-                    client.blockChainSize += 1
+
+                    if new_block is None:
+
+                        # Wait until the new block is processed
+
+                        while newBlockArrived:
+                            time.sleep(1)
+
+                        if tx.compareTransactions(
+                            transaction, client.blockchain[-1]["tx"]
+                        ):
+                            print("Another miner found the block")
+                        else:
+                            # Try again with this block
+                            client.utx.insert(0, transaction)
+
+                        continue
+
+                    # Write block to file
+                    with open("blockchain.json", "w") as f:
+                        jsonstr = json.dumps(client.blockchain, indent=4)
+                        f.write(jsonstr)
+
                     client.send_to_nodes(new_block)
-                    client.wallet, client.balance = tx.calculateUserBalance(
-                        client.blockchain, client.sk
-                    )
+                    secondsSinceLastBlock = 0
+                    transaction = None
                     print("Block mined")
+
+                    while newBlockArrived:
+                        time.sleep(1)
                 else:
-                    print("Block not valid")
-            else:
-                print("Transaction not valid")
-        time.sleep(1)
+                    print("Transaction not valid")
+        else:
+            if autoGenerate and secondsSinceLastBlock > 30:
+                tx.newTransaction(client, client.sk, client.pk.to_string().hex(), 1)
+                secondsSinceLastBlock = 0
+            time.sleep(10)
+            secondsSinceLastBlock += 10
