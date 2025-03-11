@@ -244,11 +244,9 @@ def main():
     """
 
     # Validate command line arguments
-    # if len(sys.argv) < 3:
-    #     print("Usage: python3", sys.argv[0], "CLIENTNAME PORT")
-    #     quit()
-
-    sys.argv = ["zc-client.py", "bkwong01", "9068"]
+    if len(sys.argv) < 3:
+        print("Usage: python3", sys.argv[0], "CLIENTNAME PORT")
+        quit()
 
     # Load keys, or create them if they do not yet exist
     keypath = "./" + sys.argv[1] + ".key"
