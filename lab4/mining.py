@@ -12,7 +12,6 @@ import gc
 from ecdsa import VerifyingKey
 from threading import Lock
 
-
 newBlockArrived = False
 DIFFICULTY = 0x0000007FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 CORES = cpu_count()
@@ -32,7 +31,7 @@ def detectGPUSupport():
 
     # Check if Linux
     if platform.system() == "Linux":
-        subprocess.check_output("nvcc --version")
+        subprocess.check_output("nvcc --version", shell=True)
     else:
         print(
             "Only Linux is supported for GPU mining Using Windows? install WSL to continue with GPU mining"
@@ -52,16 +51,6 @@ def detectGPUSupport():
 
 
 # Set false by default
-hasGPU = False
-try:
-    # Check if the GPU is available and if the necessary libraries are installed
-    detectGPUSupport()
-    hasGPU = True
-except ModuleNotFoundError:
-    print("Did you make sure to install the GPU dependencies?")
-    input("Press enter to continue with CPU mining")
-except Exception:
-    pass
 
 
 def hashCPUHelper(data: bytes, queue: Queue, newBlock, reporter=False) -> None:
@@ -258,7 +247,7 @@ def hashGPU(
 
 
 def createBlock(
-    transaction: dict, previousBlockId: str, publicKeys: VerifyingKey
+    transaction: dict, previousBlockId: str, publicKeys: VerifyingKey, hasGPU: bool
 ) -> dict:
     """
     The following function creates a new block by adding the coinbase tranaction,
@@ -270,6 +259,7 @@ def createBlock(
     :param transaction: The valid transaction to be hashed and placed in the block (dict)
     :param previousBlockId: The previous block id (str)
     :param publicKeys: The public key of the miner (VerifyingKey)
+    :param hasGPU: A boolean to check if the miner should use the GPU for mining (bool)
 
     :return block: The new block with the coinbase transaction, nonce, proof of work hash and previous block id (dict)
     """
@@ -286,7 +276,7 @@ def createBlock(
     start = time.perf_counter()
 
     # Determine the hash function to use
-    hashFunction = hasGPU if hashGPU else hashCPU
+    hashFunction = hashGPU if hasGPU else hashCPU
     # Find the nonce as Proof of Work and calculate the proof of work hash
     nonce, attempts = hashFunction(transaction, previousBlockId)
 
@@ -327,7 +317,7 @@ def createBlock(
     return block
 
 
-def mine(client, lock: Lock, autoGenerate=False):
+def mine(client, lock: Lock, useGPU, autoGenerate=False):
     """
     The following function picks a unverified transaction from the unverified transaction pool,
     verfies the transaction, calculates the correct nonce and proof of work hash and broadcasts the block to the network
@@ -344,6 +334,7 @@ def mine(client, lock: Lock, autoGenerate=False):
 
     :param client: The client object that contains the blockchain and unverified transaction pool (Client)
     :param lock: A lock to indicate if the miner should continue mining (Lock)
+    :param useGPU: A boolean to check if the miner should use the GPU for mining (bool)
     :param autoGenerate: A boolean to check if the miner should automatically generate transactions if the unverified transaction pool is empty (bool)
 
     :return: None
@@ -410,7 +401,7 @@ def mine(client, lock: Lock, autoGenerate=False):
                         # Creates a new block with a valid nonce and proof of work hash
                         # Updates tre transaction with coinbase transaction
                         new_block = createBlock(
-                            transaction, previousBlock, client.pk, hasGPU
+                            transaction, previousBlock, client.pk, useGPU
                         )
 
                         # Check if a new block was added by the network before miner can generate a block
@@ -448,7 +439,8 @@ def mine(client, lock: Lock, autoGenerate=False):
                             time.sleep(1)
                     else:
                         print("Transaction not valid")
-            except Exception:
+            except Exception as e:
+                print("Exception: ", e)
                 print("Transaction not valid")
         else:
 

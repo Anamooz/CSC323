@@ -2,8 +2,9 @@ import sys, time, json, os
 from ecdsa import VerifyingKey, SigningKey
 from p2pnetwork.node import Node
 from transaction import *
-from mining import mine, newBlockArrived
+from mining import mine, newBlockArrived, detectGPUSupport
 from threading import Thread, Lock
+import subprocess
 
 # Server connections constants
 SERVER_ADDR = "zachcoin.net"
@@ -25,6 +26,9 @@ class ZachCoinClient(Node):
 
     sk = None
     pk = None
+
+    # Indicates if the user's computer has GPU acceleration for mining
+    hasGPU = False
 
     # Array used to store the blockchain of ZachCoin
     # Hardcoded gensis block
@@ -240,9 +244,11 @@ def main():
     """
 
     # Validate command line arguments
-    if len(sys.argv) < 3:
-        print("Usage: python3", sys.argv[0], "CLIENTNAME PORT")
-        quit()
+    # if len(sys.argv) < 3:
+    #     print("Usage: python3", sys.argv[0], "CLIENTNAME PORT")
+    #     quit()
+
+    sys.argv = ["zc-client.py", "bkwong01", "9068"]
 
     # Load keys, or create them if they do not yet exist
     keypath = "./" + sys.argv[1] + ".key"
@@ -269,6 +275,18 @@ def main():
     client.pk = vk
     client.debug = False
 
+    try:
+        # Check if the GPU is available and if the necessary libraries are installed
+        detectGPUSupport()
+        client.hasGPU = True
+    except ModuleNotFoundError as e:
+        print(e)
+        print("Did you make sure to install the GPU dependencies?")
+        input("Press enter to continue with CPU mining")
+    except Exception as e:
+        print(e)
+        pass
+
     # Wait for the client to start
     time.sleep(1)
 
@@ -281,7 +299,7 @@ def main():
     client.connect_with_node(SERVER_ADDR, SERVER_PORT)
     print("Starting ZachCoin™ Client:", sys.argv[1])
     # Wait for the client to connect to the server
-    time.sleep(2)
+    time.sleep(3)
 
     # Initialize mining thread as false and creates a lock for the thread
     # Will use as ITC for communication between main thread and mining thread
@@ -325,10 +343,12 @@ def main():
             with open("blockchain.json", "w") as f:
                 # Write the blockchain to the file
                 f.write(json.dumps(client.blockchain, indent=1))
+            print("Blockchain written to blockchain.json")
         # If the user selected 2, write the UTX pool to utxpool.json
         elif x == 2:
             with open("utxpool.json", "w") as f:
                 f.write(json.dumps(client.utx, indent=1))
+            print("UTX pool written to utxpool.json")
         # If the user selected 3, create a new transaction
         elif x == 3:
             # Creates and starts a new thread for handling new transaction GUI
@@ -352,9 +372,27 @@ def main():
                     mine_thread = None
             else:
                 # Else, start the mining thread
+                # Ask the user if they want to use GPU mining if supported
+                gpu = "N"
+                if client.hasGPU:
+                    gpu = input("Would you like to use GPU mining? (Y/N): ")
+
+                # Ask the user if they want to auto generate new transactions
+                auto = input(
+                    "Would you like to auto generate new transactions if the UTX pool is empty for 30 seconds ? (Y/N): "
+                )
+
                 # Enable the mining thread to run
                 mine_lock.acquire()
-                mine_thread = Thread(target=mine, args=(client, mine_lock, True))
+                mine_thread = Thread(
+                    target=mine,
+                    args=(
+                        client,
+                        mine_lock,
+                        gpu == "Y" or gpu == "y",
+                        auto == "Y" or auto == "y",
+                    ),
+                )
                 mine_thread.start()
                 print("Mining thread started")
         # If the user selected 5, print the user's wallet
