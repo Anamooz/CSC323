@@ -108,6 +108,7 @@ source ~/.bashrc
 Once you have all the dependencies installed, you can start  ZachCoin™ Client from the terminal
 
 Usage: `python3 zc-client.py \<Cal Poly Username\> \<Port Number greater than 8000\>` 
+
 Example : `python3 /home/tiger/lab4/zc-client.py bkwong01 9015`
 
 On the first time launch, the ZachCoin™ Client will generate an ESDSA public-private key pair used as your Zachcoin wallet. The private key will be stored as \<username\>.key in the same directory as the program.  You would want to keep this key PRIVATE, as anyone with this key will have access to your wallet.  
