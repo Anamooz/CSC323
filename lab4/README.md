@@ -107,7 +107,7 @@ source ~/.bashrc
 
 Once you have all the dependencies installed, you can start  ZachCoin™ Client from the terminal
 
-Usage: `python3 zc-client.py \<Cal Poly Username\> \<Port Number greater than 8000\>` 
+Usage: `python3 zc-client.py <Cal Poly Username> <Port Number greater than 8000>` 
 
 Example : `python3 /home/tiger/lab4/zc-client.py bkwong01 9015`
 
