@@ -15,11 +15,11 @@
 
 ---
 
-# **Introduction** {#introduction}
+# **Introduction** 
 
 ZachCoin™ Client is a Python-built, CLI-based mining application that connects with the Zachcoin peer-to-peer network and allows users to interact with it.
 
-# **Available Features**  {#available-features}
+# **Available Features**  
 
 - Send and receive transactions from other users on the Zachcoin network  
 - Ability to mine newly announced verified transactions  
@@ -27,13 +27,13 @@ ZachCoin™ Client is a Python-built, CLI-based mining application that connects
 
 ---
 
-# **Hardware Requirements** {#hardware-requirements}
+# **Hardware Requirements** 
 
 - 2GHz dual-Core processor or higher  
 - 4GB+  
 -  Nividia GTX 10x series card (Pascal) or newer ([GPU-accelerated mining](#gpu-acceleration) only)
 
-# **Setting Up the Environment** {#setting-up-the-environment}
+# **Setting Up the Environment**
 
 To run ZachCoin™ Client, you will need to make sure you have the following dependencies installed on your machine 
 
@@ -52,7 +52,7 @@ To run ZachCoin™ Client, you will need to make sure you have the following dep
   `pip install pycryptodome ecdso p2pnetwork`
 
 
-# **GPU Acceleration**  {#gpu-acceleration}
+# **GPU Acceleration**  
 
 ZachCoin™ client supports GPU acceleration for enhanced mining performance if they have a supported graphics card. GPU acceleration can be used both in Linux and through WSL2 for Windows users
 
@@ -103,7 +103,7 @@ source ~/.bashrc
 
 ---
 
-# **Using the ZachCoin™ Client** {#using-the-zachcoin™-client}
+# **Using the ZachCoin™ Client**
 
 Once you have all the dependencies installed, you can start  ZachCoin™ Client from the terminal
 
