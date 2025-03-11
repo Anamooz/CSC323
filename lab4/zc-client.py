@@ -92,6 +92,12 @@ class ZachCoinClient(Node):
         :return: None
         """
 
+        def notSameTransactions(t1, t2):
+            try:
+                return compareTransactions(t1, t2)
+            except:
+                return False
+
         print("node_message from " + connected_node.id)
 
         # If there is data in the message
@@ -136,13 +142,19 @@ class ZachCoinClient(Node):
                     if verifyBlock(self.blockchain, data):
                         self.blockchain.append(data)
                         # Remove the block's transactions from the UTX pool
-                        for utx in self.utx:
-                            if (
-                                utx["input"]["id"] == data["tx"]["input"]["id"]
-                                and utx["input"]["n"] == data["tx"]["input"]["n"]
-                            ):
-                                self.utx.remove(utx)
-                                break
+                        # for utx in self.utx:
+                        #     if (
+                        #         utx["input"]["id"] == data["tx"]["input"]["id"]
+                        #         and utx["input"]["n"] == data["tx"]["input"]["n"]
+                        #     ):
+                        #         self.utx.remove(utx)
+                        #         break
+                        self.utx = list(
+                            filter(
+                                lambda x: notSameTransactions(x, data["tx"]),
+                                self.utx,
+                            )
+                        )
 
                         # Update the user's balance and wallet
                         self.wallet, self.balance = calculateUserBalance(

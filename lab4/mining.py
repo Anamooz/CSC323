@@ -405,7 +405,10 @@ def mine(client, lock: Lock, useGPU, autoGenerate=False):
                         )
 
                         # Check if a new block was added by the network before miner can generate a block
-                        if new_block is None:
+                        if (
+                            new_block is None
+                            or new_block["prev"] != client.blockchain[-1]["id"]
+                        ):
 
                             # Wait until the newly added block is processed
                             while newBlockArrived:

@@ -2069,19 +2069,19 @@
  {
   "type": 1,
   "input": {
-   "id": "5c9b9f46543946d2896b16c8bc0f23c8c903b4c87910229ef545c96561689e5c",
-   "n": 2
+   "id": "fc3313e22aa74ee4f4ff63136f3ebcb41bc9fee7b2e97a75584ee340c61dae67",
+   "n": 1
   },
   "output": [
    {
-    "pub_key": "ff7d35f3f83608f4cedbb052d207e6987b51bd1d8ee779ab",
-    "value": 25
+    "pub_key": "de95e072946fabd29e853eddb9e88d16fcebaf5aa63cf5c286716c1ff84ed9a6d0ee0bec4e764ee606a0437065bf3691",
+    "value": 20
    },
    {
     "pub_key": "b860c1d191c3dd0da23d158569f01a686d9b03572b9486dd4d6bf48adfd484ef03747bf2324232b9d88b1704ed02be7a",
-    "value": 25
+    "value": 28
    }
   ],
-  "sig": "11889aa5d56974bda8061814aec685f3a6281106426e67472aab96bb5fc77c422d99db8d613486d33cc29a03d9ffc511"
+  "sig": "a8db12840033e5c8d8ccc31b8c0f28d856ee24900c1a72c27f180ec7e873390f5a2d86f1a432980e2ca343e8c6ab08bf"
  }
 ]
