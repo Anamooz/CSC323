@@ -115,44 +115,47 @@ def verify(blockchain: List[dict], transaction: dict, mined: bool = False) -> bo
     """
 
     # Check if the provided transaction has a valid type
-    if transaction["type"] == 1:
+    try:
+        if transaction["type"] == 1:
 
-        # Get the previous transaction id and index to check balance
-        input_id = transaction["input"]["id"]
-        input_index = transaction["input"]["n"]
-        previousTransactions = None
+            # Get the previous transaction id and index to check balance
+            input_id = transaction["input"]["id"]
+            input_index = transaction["input"]["n"]
+            previousTransactions = None
 
-        # Look for that transaction in the blockchain
-        for block in blockchain:
-            if input_id == block["id"]:
-                previousTransactions = block["tx"]["output"][input_index]
-                break
+            # Look for that transaction in the blockchain
+            for block in blockchain:
+                if input_id == block["id"]:
+                    previousTransactions = block["tx"]["output"][input_index]
+                    break
 
-        # If not in the blockchain, return False
-        if previousTransactions is None:
-            return
+            # If not in the blockchain, return False
+            if previousTransactions is None:
+                return
 
-        # Get the amount of coins in the input transaction
-        previousAmount = previousTransactions["value"]
+            # Get the amount of coins in the input transaction
+            previousAmount = int(previousTransactions["value"])
 
-        # Check if the transaction has a change
-        change = 0
-        if previousAmount > transaction["output"][0]["value"]:
+            # Check if the transaction has a change
+            change = 0
+            if previousAmount > int(transaction["output"][0]["value"]):
 
-            # Get the change in the transaction
-            # If there is no change when there should be, return False
-            try:
-                change = transaction["output"][1]["value"]
-            except IndexError:
+                # Get the change in the transaction
+                # If there is no change when there should be, return False
+                try:
+                    change = int(transaction["output"][1]["value"])
+                except IndexError:
+                    return False
+
+            # Check if the transaction amount is valid
+            if previousAmount == int(transaction["output"][0]["value"]) + change:
+                # Verify the signature of this transaction
+                return verifySignature(transaction, previousTransactions["pub_key"], mined)
+            else:
                 return False
-
-        # Check if the transaction amount is valid
-        if previousAmount == transaction["output"][0]["value"] + change:
-            # Verify the signature of this transaction
-            return verifySignature(transaction, previousTransactions["pub_key"], mined)
         else:
             return False
-    else:
+    except:
         return False
 
 
@@ -199,7 +202,7 @@ def calculateUserBalance(blockchain: dict, sk_key: SigningKey) -> tuple[dict, in
 
             # Check in slot 0
             if block["tx"]["output"][0]["pub_key"] == pub_key:
-                amount = block["tx"]["output"][0]["value"]
+                amount = int(block["tx"]["output"][0]["value"])
                 # Add the block to the wallet
                 wallet[block["id"] + "0"] = {
                     "amount": amount,
@@ -209,7 +212,7 @@ def calculateUserBalance(blockchain: dict, sk_key: SigningKey) -> tuple[dict, in
 
             # Check in slot 1
             if block["tx"]["output"][1]["pub_key"] == pub_key:
-                amount = block["tx"]["output"][1]["value"]
+                amount = int(block["tx"]["output"][1]["value"])
                 # Add the block to the wallet
                 wallet[block["id"] + "1"] = {
                     "amount": amount,
@@ -219,7 +222,7 @@ def calculateUserBalance(blockchain: dict, sk_key: SigningKey) -> tuple[dict, in
 
             # Check in slot 2
             if block["tx"]["output"][2]["pub_key"] == pub_key:
-                amount = block["tx"]["output"][2]["value"]
+                amount = int(block["tx"]["output"][2]["value"])
                 # Add the block to the wallet
                 wallet[block["id"] + "2"] = {
                     "amount": amount,
